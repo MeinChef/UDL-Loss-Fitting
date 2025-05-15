@@ -32,16 +32,20 @@ def load_data(cfg: dict) -> tuple[tuple, tuple]:
         # only use columns pressure, speed and direction
         usecols = (2,6,4)
         )
+    # remove any inf or nan values
+    df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
     
     # shuffle for better distribution of training/test data
     np.random.seed(42)
     np.random.shuffle(df)
+    # split in train/test halves
     train = df[:int(df.shape[0]*0.8)]
     test = df[int(df.shape[0]*0.8):]
+    breakpoint()
 
-    # turn them into dataloaders
-    train = tf.data.Dataset.from_tensors((train[:,:2], train[:,2]))
-    test = tf.data.Dataset.from_tensors((test[:,:2], test[:,2]))
+    # turn them into dataloaders, and use col 0+1 
+    train = tf.data.Dataset.from_tensor_slices((train[:,:2], train[:,2]))
+    test = tf.data.Dataset.from_tensor_slices((test[:,:2], test[:,2]))
 
     train = train.batch(cfg["batch"]).prefetch(tf.data.AUTOTUNE)
     test  =  test.batch(cfg["batch"]).prefetch(tf.data.AUTOTUNE)
