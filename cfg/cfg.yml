@@ -1,5 +1,6 @@
 data_path: "data"
 data_name: "data_with_windstr.csv"
+seq_len: 5
 
 batch: 128
 epochs: 5
