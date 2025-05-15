@@ -12,3 +12,6 @@ After creating the environment, you can activate it using the following command:
 `$ conda activate udl`
 Once activated, you can start the program with
 `$ python main.py`
+
+# Novelty in our Demo
+The visualizatition of the data in different graphics and a novel visualization that wasn't done before by someone else.
