@@ -16,7 +16,7 @@ def load_data(cfg: dict) -> tuple[tuple, tuple]:
         A function to load a csv, path specified in config dictionary.
         Returns Tuple of (Train, Test), where Train and Test (Data, Target)
 
-        :param cfg: A Dictionary containing the key "data_pth"
+        :param cfg: A Dictionary containing the key "data_path"
         :type cfg: dictionary, required
 
         :return: Tuple of Tuple of Dataloaders
@@ -25,7 +25,7 @@ def load_data(cfg: dict) -> tuple[tuple, tuple]:
 
     # load csv with numpy
     df = np.genfromtxt(
-        os.path.join(cfg["data_pth"], cfg["data_name"]), 
+        os.path.join(cfg["data_path"], cfg["data_name"]), 
         dtype = np.float32,
         delimiter = ";",
         skip_header = 3,
