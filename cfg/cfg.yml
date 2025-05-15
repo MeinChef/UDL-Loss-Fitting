@@ -1,0 +1,4 @@
+data_path: "data"
+data_name: "data_with_windstr.csv"
+
+batch: 128
