@@ -14,4 +14,4 @@ Once activated, you can start the program with
 `$ python main.py`
 
 # Novelty in our Demo
-The visualizatition of the data in different graphics and a visualization that wasn't done before by someone else.
+The visualizatition of the data in different graphics that weren't used before by someone else for this task.
