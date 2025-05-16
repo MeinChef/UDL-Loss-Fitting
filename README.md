@@ -7,7 +7,7 @@ We use data collected by the Lower Saxon Ministry for the Environment, Energy an
 
 # Create environment
 You can create the environment needed for this project using:
-`$ conda env create -f env.yml`
+`$ conda env create -f env.yml python=3.11`
 After creating the environment, you can activate it using the following command:
 `$ conda activate udl`
 Once activated, you can start the program with
