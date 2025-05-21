@@ -20,3 +20,6 @@ $ python src/main.py
 ```
 # Novelty in our Demo
 The visualizatition of the data in different graphics that weren't used before by someone else for this task.
+
+# Explanation of Losses used
+TODO
