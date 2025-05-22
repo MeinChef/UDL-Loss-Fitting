@@ -7,7 +7,7 @@ def get_model() -> keras.Model:
         [
             keras.layers.Dense(64, activation = "swish", input_shape = (2,)),
             keras.layers.Dense(32, activation = "swish"),
-            keras.layers.Dense(2)
+            keras.layers.Dense(1)
         ]
     )
 
