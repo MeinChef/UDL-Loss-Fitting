@@ -1,7 +1,5 @@
-# from imports import pandas as pd
 from imports import tensorflow as tf
 from imports import numpy as np
-# from imports import keras
 from imports import yaml
 from imports import os
 from imports import math
@@ -43,7 +41,7 @@ def load_data(cfg: dict) -> tuple[tuple, tuple]:
     train = df[:int(df.shape[0]*0.8)]
     test = df[int(df.shape[0]*0.8):]
 
-    # turn them into dataloaders, and use col 0+1 
+    # turn them into dataloaders, and use col 0+1 for data, col 2 for target
     train = tf.data.Dataset.from_tensor_slices((train[:,:2], train[:,2]))
     test = tf.data.Dataset.from_tensor_slices((test[:,:2], test[:,2]))
 

@@ -1,18 +1,14 @@
 from imports import keras
-from imports import tensorflow as tf
 
 def get_model() -> keras.Model:
-    # add lstm? 
-    model = keras.Sequential(
-        [
-            keras.layers.Dense(64, activation = "swish", input_shape = (2,)),
-            keras.layers.Dense(32, activation = "swish"),
-            keras.layers.Dense(1)
-        ]
-    )
+    inputs = keras.layers.Input(shape = (3,))
+    x = keras.layers.Dense(64, activation = "tanh")(inputs)
+    x = keras.layers.Dense(32, activation = "tanh")(x)
+    output = keras.layers.Dense(1)(x)
+    model = keras.models.Model(inputs=inputs, outputs=output)
 
     # TODO: other loss function / custom loss function
-    model.compile(optimizer = "adam", loss = "mse")
+    # model.compile(optimizer = "adam", loss = "mse")
     return model
 
 def get_lstm_model(seq_len=5, input_dim=2) -> keras.Model:
@@ -29,7 +25,8 @@ def get_lstm_model(seq_len=5, input_dim=2) -> keras.Model:
     output = keras.layers.Dense(1)(dense_out)
 
     model = keras.models.Model(inputs=inputs, outputs=output)
-    model.compile(optimizer='adam', loss='mse')
+
+    # model.compile(optimizer='adam', loss='mse')
     return model
 
 def get_circ_model(seq_len=5, input_dim=2):
@@ -46,11 +43,5 @@ def get_circ_model(seq_len=5, input_dim=2):
 
     model = keras.Model(inputs, output)
 
-    model.compile(optimizer='adam', loss=angle_cosine_loss)
-
+    # model.compile(optimizer='adam', loss=angle_cosine_loss)
     return model
-
-def angle_cosine_loss(y_true, y_pred):
-        y_true = tf.math.l2_normalize(y_true, axis=1)
-        y_pred = tf.math.l2_normalize(y_pred, axis=1)
-        return 1 - tf.reduce_mean(tf.reduce_sum(y_true * y_pred, axis=1))
