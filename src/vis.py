@@ -5,7 +5,7 @@ import data
 
 def visualise_data(
         data: tuple,
-        cfg: dict = None,
+        cfg: dict,
         title:str = ""
 ):
     """

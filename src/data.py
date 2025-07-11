@@ -4,22 +4,22 @@ from imports import yaml
 from imports import os
 from imports import math
 
-def load_config(path: str = "config.yml") -> tuple[dict, dict]:
+def load_config(path: str = "config.yml") -> dict:
     with open(path, "r") as file:
         config = yaml.safe_load(file)
 
     return config
 
-def load_data(cfg: dict) -> tuple[tuple, tuple]:
+def load_data(cfg: dict) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     """
         A function to load a csv, path specified in config dictionary.
-        Returns Tuple of (Train, Test), where Train and Test (Data, Target)
+        Returns Tuple of (Train, Test), where Train and Test are tf.data.Dataset objects.
 
         :param cfg: A Dictionary containing the key "data_path"
         :type cfg: dictionary, required
 
-        :return: Tuple of Tuple of Dataloaders
-        :rtype: tuple[tuple[tf.Dataloader, tf.Dataloader], tuple[tf.Dataloader, tf.Dataloader]]
+        :return: Tuple of Dataloaders
+        :rtype: tuple[tf.data.Dataset, tf.data.Dataset]
     """
 
     # load csv with numpy
@@ -51,7 +51,7 @@ def load_data(cfg: dict) -> tuple[tuple, tuple]:
     return train, test
 
 
-def load_lstm_data(cfg: dict) -> tuple[tuple, tuple]:
+def load_lstm_data(cfg: dict) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     # load csv with numpy
     df = np.genfromtxt(
         os.path.join(cfg["data_path"], cfg["data_name"]), 
@@ -97,7 +97,7 @@ def load_lstm_data(cfg: dict) -> tuple[tuple, tuple]:
 
     return train, test
 
-def load_circ_data(cfg: dict) -> tuple[tuple, tuple]:
+def load_circ_data(cfg: dict) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     # load csv with numpy
     df = np.genfromtxt(
         os.path.join(cfg["data_path"], cfg["data_name"]), 
