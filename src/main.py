@@ -2,7 +2,7 @@ import model as md
 import data
 from imports import os
 from imports import argparse
-from imports import loss
+from loss import von_Mises
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,19 +28,19 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()  
 
-def resolve_args(args:argparse.Namespace) -> dict:
+def resolve_args(args:argparse.Namespace) -> tuple:
 
     if args.model == "dense":
-        model = md.get_dense()
+        model = md.get_dense_model()
         prep = "dense"
     elif args.model == "lstm":
-        model = md.get_lstm()
+        model = md.get_lstm_model()
         prep = "lstm"
     else:
         raise ValueError(f"Unknown model type: {args.model}")
 
     if args.loss == "von_Mises":
-        loss =  loss.von_Mises
+        loss =  von_Mises
     elif args.loss == "mse":
         loss = "mse"
     else:
@@ -53,8 +53,8 @@ def resolve_args(args:argparse.Namespace) -> dict:
 
 if __name__ == "__main__":
     # parse command line arguments
-    args = parse_args()
-    args = resolve_args(args)
+    parsed_args = parse_args()
+    model, args = resolve_args(parsed_args)
     
     # fetch config
     cfg = data.load_config(os.path.join("cfg", "cfg.yml"))
@@ -65,7 +65,6 @@ if __name__ == "__main__":
     
 
     # compile the model
-    model = args.pop("model")
     model.compile(optimizer = "adam", loss = args["loss"])
     model.summary()
 

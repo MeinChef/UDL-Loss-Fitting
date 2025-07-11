@@ -1,5 +1,5 @@
 from imports import tensorflow as tf
-# from imports import tensorflow_probability as tfp
+from imports import tensorflow_probability as tfp
 
 # https://doi.org/10.48550/arXiv.2103.15718
 # mean absolute error?
@@ -10,7 +10,10 @@ def angle_cosine_loss(y_true, y_pred):
         y_pred = tf.math.l2_normalize(y_pred, axis=1)
         return 1 - tf.reduce_mean(tf.reduce_sum(y_true * y_pred, axis=1))
 
-def von_Mises(y_true, y_pred):
+def von_Mises(
+          y_true: tf.Tensor, 
+          y_pred: tf.Tensor
+          ) -> tf.Tensor:
     """
     Custom loss function for von Mises distribution.
     :param y_true: true values (angles in radians)
@@ -27,7 +30,7 @@ def von_Mises(y_true, y_pred):
     y_pred_vector = tf.stack([tf.cos(y_pred), tf.sin(y_pred)], axis=-1)
 
     # Calculate the cosine similarity
-    cosine_similarity = tf.reduce_sum(y_true_vector * y_pred_vector, axis=-1)
+    cosine_similarity = tf.reduce_sum(tf.multiply(y_true_vector, y_pred_vector), axis=-1)
 
     # Calculate the von Mises loss
     loss = -tf.math.log(cosine_similarity + 1e-10)  # Add small constant to avoid log(0)

@@ -1,6 +1,6 @@
 from imports import keras
 
-def get_model() -> keras.Model:
+def get_dense_model() -> keras.Model:
     inputs = keras.layers.Input(shape = (3,))
     x = keras.layers.Dense(64, activation = "tanh")(inputs)
     x = keras.layers.Dense(32, activation = "tanh")(x)
