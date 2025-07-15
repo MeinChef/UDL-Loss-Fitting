@@ -7,5 +7,4 @@ import keras
 import matplotlib.pyplot as plt
 import numpy
 import tensorflow
-import tensorflow_probability
 import yaml

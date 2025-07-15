@@ -2,7 +2,7 @@ import model as md
 import data
 from imports import os
 from imports import argparse
-from loss import von_Mises
+from loss import VonMisesFisher
 
 
 def parse_args() -> argparse.Namespace:
@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--loss",
         type = str,
-        choices = ["mse", "von_Mises"],
+        choices = ["mse", "von_Mises", "cosine"],
         default = "mse",
         help = "Choose the loss function to use: 'mse' or 'von_Mises'."
     )
@@ -40,9 +40,11 @@ def resolve_args(args:argparse.Namespace) -> tuple:
         raise ValueError(f"Unknown model type: {args.model}")
 
     if args.loss == "von_Mises":
-        loss =  von_Mises
+        loss = VonMisesFisher(kappa=1.0)
     elif args.loss == "mse":
         loss = "mse"
+    elif args.loss == "cosine":
+        loss = "cosine_similarity"
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
     
