@@ -35,18 +35,35 @@ The visualizatition of the data in different graphics that weren't used before b
 
 # Explanation of Losses
 ## Based on von Mises-Fischer Distribution
-Since our model tries to predict the direction of wind, we are using the von Mises Distribution. The von Mises Distribution is defined from $-\pi$ to $\pi$ in two dimensions (circle). But since we are having three dimensions, a variant of the von Mises distribution, the von Mises-Fischer Distribution that modifies the distribution to p dimensions, could also be used. That is what we are doing here.
+Since our model tries to predict the direction of wind, which is given on a circle, we are using the von Mises-Fischer Distribution. 
+The von Mises Distribution is defined from $-\pi$ to $\pi$ in two dimensions (circle) as follows:
+
+```math
+f(x|\mu,\kappa) = \frac{\exp(\kappa\cos(x-\mu))}{2\pi I_0(\kappa)}
+```
+
+But since we are having three dimensions (speed, direction, pressure), a variant of the von Mises distribution, the _von Mises-Fischer Distribution_ that modifies the distribution to $p$ dimensions, could also be used. 
 
 ```math
 \begin{align}
-    f_p (y|\mu,\kappa) &= C_p(\kappa)\exp\left(\kappa \mu^\top x\right) \nonumber \\
-    C_p(\kappa) &= \frac{\kappa^{p/2-1}}{(2\pi)^{p/2}I_{p/2-1}(\kappa)} \nonumber
+    f_p (y|\mu,\kappa) &= C_p(\kappa)\exp\left(\kappa \mu^\top y\right)  \\
+    C_p(\kappa) &= \frac{\kappa^{p/2-1}}{(2\pi)^{p/2}I_{p/2-1}(\kappa)} 
 \end{align}
 ```
+The modified version for three dimensions is defined as:
+
+```math
+\begin{align}
+    f_p (y|\mu,\kappa) = \frac{\kappa\exp(\kappa(\mu^\top y-1))}{2\pi(1-\exp(-2\kappa))}
+\end{align}
+```
+
 Let us now replace the variable $\mu$ with our model:
 
 ```math
-    f_p \left(y|\mathbf{f\left[x,\phi\right]},\kappa\right) = C_p(\kappa)\exp\left(\kappa \left(\mathbf{f[x,\phi]}\right)^\top x\right)
+\begin{align}
+    f_p (y|\mathbf{f\left[x_i, \phi\right]},\kappa) = \frac{\kappa\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y-1))}{2\pi(1-\exp(-2\kappa))}
+\end{align}
 ```
 we assume $\kappa$ to be an unknown constant. 
 
@@ -54,23 +71,27 @@ Constructing the negative Log-Likelihood with $i$ being an individual datapoint,
 
 ```math
 \begin{align}
-    L[\mathbf{\phi}] &= - \sum_{i=1}^{I} \log \left[ Pr(y_i|\mathbf{f\left[x_i, \phi\right]}), \kappa \right]\nonumber \\
-    &= - \sum_{i=1}^{I} \log \left[ C_p(\kappa)\exp\left(\kappa \left(\mathbf{f[x_i,\phi]}\right)^\top x\right)\right] \nonumber \\
-    &= - \sum_{i=1}^{I} \left(\log \left[C_p(\kappa) \right] - \log\left[\exp\left( \kappa \left(\mathbf{f[x_i,\phi]}\right)^\top x \right)\right] \right) \nonumber
+    L[\mathbf{\phi}] &= - \sum_{i=1}^{I} \log \left[ Pr(y_i|\mathbf{f\left[x_i, \phi\right]}), \kappa \right] \\
+    &= - \sum_{i=1}^{I} \log \left[\frac{\kappa\exp\left(\kappa\left(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1\right)\right)}{2\pi(1-\exp(-2\kappa))} \right]  \\
+    &= - \sum_{i=1}^{I} \left[\log\left(\kappa\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1))\right) - \log \left(2\pi(1-\exp(-2\kappa))\right)\right]  \\
+    &= - \sum_{i=1}^{I} \left[\log\kappa + \log\left(\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1))\right) - \log \left(2\pi(1-\exp(-2\kappa))\right) \right] \\
+    &= - \sum_{i=1}^{I} \left[ \log\kappa + \kappa y_i\mathbf{f\left[x_i, \phi\right]}^\top - \log \left(2\pi(1-\exp(-2\kappa))\right)\right] \\
+    &= -\left(N\log(\kappa) + \kappa \sum_{i=1}^{I} \mathbf{f\left[x_i, \phi\right]}^\top  y_i -\log\left(2\pi(1-\exp(-2\kappa))\right) \right)
 \end{align}
 ```
-Since $\mu$ is not present in the expression $\log \left[C_p(\kappa) \right]$, it can be assumed to be constant and dropped.
+Dropping everything that does not depend on $\mu$ results in:
 
 ```math
 \begin{align}
-    L[\mathbf{\phi}] &= - \sum_{i=1}^{I}  -  \kappa \left(\mathbf{f[x_i,\phi]}\right)^\top x \nonumber \\
-    &= \sum_{i=1}^{I} \kappa \left(\mathbf{f[x_i,\phi]}\right)^\top x \nonumber
+    L[\mathbf{\phi}] &= - \kappa \sum_{i=1}^{I} \mathbf{f[x_i,\phi]}^\top y_i 
 \end{align}
 ```
 
+[Reference for the formulas](https://jstraub.github.io/download/straub2017vonMisesFisherInference.pdf)
 
 ## Cosine-Similarity
 
 
 
-## 
+## Link dump
+https://github.com/google-research/vmf_embeddings/blob/main/vmf_embeddings/methods/methods.py
