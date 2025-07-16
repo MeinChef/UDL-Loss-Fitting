@@ -9,7 +9,7 @@ class VonMisesFisher(keras.losses.Loss):
     def __init__(
             self, 
             kappa: float = 1.0,
-            reduction = tf.keras.losses.Reduction.AUTO,
+            reduction = "sum_over_batch_size",
             name = "von_mises_fisher",
             dtype = tf.float32
         ):
