@@ -121,9 +121,6 @@ def lstm_data(
         # use the past cfg["seq_len"] datapoints for one sample
         lstm[i] = data[i:i+cfg["seq_len"]]
     
-    # check if the arrays are similar in size
-    breakpoint()
-
     return lstm, target
 
 def unison_shuffled_copies(
