@@ -2,7 +2,7 @@ import model as md
 import data
 from imports import os
 from imports import argparse
-from loss import VonMisesFisher
+from loss import VonMisesFisher, CosineSimilarity
 
 
 def parse_args() -> argparse.Namespace:
@@ -40,15 +40,20 @@ def resolve_args(args:argparse.Namespace) -> tuple:
         raise ValueError(f"Unknown model type: {args.model}")
 
     if args.loss == "von_Mises":
-        loss = VonMisesFisher(kappa=1.0)
+        loss = VonMisesFisher(
+            kappa = 1.0,
+            reduction = "sum_over_batch_size" 
+            )
     elif args.loss == "mse":
         loss = "mse"
     elif args.loss == "cosine":
+        # loss = CosineSimilarity()
         loss = "cosine_similarity"
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
     
     return model, {
+            "model": args.model,
             "loss": loss,
             "data_prep": prep
         }
@@ -67,8 +72,10 @@ if __name__ == "__main__":
     
 
     # compile the model
+    print(f"Using model type {args['model']} and Loss {args['loss'].__str__()}:")
     model.compile(optimizer = "adam", loss = args["loss"])
     model.summary()
+    
 
     # fit the model
     model.fit(train, epochs = cfg["epochs"])
