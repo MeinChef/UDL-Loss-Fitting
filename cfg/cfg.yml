@@ -1,5 +1,6 @@
 data_path: "data"
 data_name: "data_with_windstr.csv"
+split: 0.8 #float between 0 and 1
 seq_len: 5
 
 batch: 128
