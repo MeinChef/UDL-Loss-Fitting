@@ -105,3 +105,10 @@ cos_dir = np.cos(wind_dir_rad)
 
 loss = MSE(pred_sin, true_sin) + MSE(pred_cos, true_cos)
 ```
+
+TODO: 
+- make Readme pretty, write something about cosine-similarity
+- as well as about sine/cosine loss - and mention that that's the only thing that works
+- play around with hyperparams of optimiser
+- search internet for sine/cosine stuff
+- write about problems we ran into
