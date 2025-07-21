@@ -42,12 +42,16 @@ def load_data(cfg: dict) -> tuple[tf.data.Dataset, tf.data.Dataset]:
     
     # remove any inf or nan values
     df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
+    # since the distributions are defined from -pi to pi, we need the direction in rad
+    df[:,2] = np.deg2rad(df[:,2])
     
     # different pipelines for data
     if cfg["data_prep"] == "dense":
         data, target =  dense_data(df, cfg)
     elif cfg["data_prep"] == "lstm":
         data, target = lstm_data(df, cfg)
+    elif cfg["data_prep"] == "circ":
+        data, target = circ_data(df, cfg)
     else:
         raise ValueError(f"Unknown data preparation type: {cfg['data_prep']}")
 
@@ -134,6 +138,43 @@ def lstm_data(
     for i in range(total - cfg["seq_len"]):
         # use the past cfg["seq_len"] datapoints for one sample
         lstm[i] = data[i:i+cfg["seq_len"]]
+    
+    return lstm, target
+
+def circ_data(
+        df: np.ndarray,
+        cfg: dict    
+    ) -> tuple[np.ndarray, np.ndarray]:
+
+    total = df.shape[0]
+    data = df
+    
+
+    if cfg["problem"] != "direction": 
+        raise ValueError(f"Problem {cfg['problem']} is incompatible with data preparation for a circular model.")
+
+    # func = np.vectorize(lambda x: np.array([np.sin(x), np.cos(x)]))
+    
+    # target = func(df[cfg["seq_len"]:,2])
+    target = np.empty(
+        shape = (total - cfg["seq_len"], 2),
+        dtype = np.float32
+    )
+
+    lstm = np.full(
+            shape = (total - cfg["seq_len"], cfg["seq_len"], 3), 
+            fill_value = np.nan,
+            dtype = np.float32
+        )
+    # construct LSTM data
+    for i in range(total - cfg["seq_len"]):
+        # use the past cfg["seq_len"] datapoints for one sample
+        lstm[i] = data[i:i+cfg["seq_len"]]
+
+        target[i,:] = np.array([
+            np.sin(data[i+cfg["seq_len"],2]),
+            np.cos(data[i+cfg["seq_len"],2])
+        ])
     
     return lstm, target
 
