@@ -3,6 +3,7 @@ import data
 from imports import os
 from imports import argparse
 from loss import VonMisesFisher, CosineSimilarity
+from imports import keras
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,34 +27,45 @@ def parse_args() -> argparse.Namespace:
         help = "Choose the loss function to use: 'mse' or 'von_Mises'."
     )
 
+    parser.add_argument(
+        "--problem",
+        type = str,
+        choices = ["direction", "speed"],
+        default = "direction",
+        help = "Chosse the type of problem to be solved. Which value is to be predicted: 'direction' or 'speed'."
+    )
+
     return parser.parse_args()  
 
-def resolve_args(args:argparse.Namespace) -> tuple:
+def resolve_args(args:argparse.Namespace) -> tuple[keras.Model, dict]:
 
-    if args.model == "dense":
+    if args.model.lower() == "dense":
         model = md.get_dense_model()
         prep = "dense"
-    elif args.model == "lstm":
+    elif args.model.lower() == "lstm":
         model = md.get_lstm_model()
         prep = "lstm"
     else:
         raise ValueError(f"Unknown model type: {args.model}")
 
-    if args.loss == "von_Mises":
+    if args.loss.lower() == "von_mises":
         loss = VonMisesFisher(
             kappa = 1.0,
             reduction = "sum_over_batch_size" 
             )
-    elif args.loss == "mse":
+    elif args.loss.lower() == "mse":
         loss = "mse"
-    elif args.loss == "cosine":
+    elif args.loss.lower() == "cosine":
         # loss = CosineSimilarity()
         loss = "cosine_similarity"
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
     
+
+
     return model, {
             "model": args.model,
+            "problem": args.problem,
             "loss": loss,
             "data_prep": prep
         }
@@ -66,6 +78,7 @@ if __name__ == "__main__":
     # fetch config
     cfg = data.load_config(os.path.join("cfg", "cfg.yml"))
     cfg["data_prep"] = args["data_prep"]
+    cfg["problem"] = args["problem"]
 
     # load data
     train, test = data.load_data(cfg)
@@ -75,7 +88,6 @@ if __name__ == "__main__":
     print(f"Using model type {args['model']} and Loss {args['loss'].__str__()}:")
     model.compile(optimizer = "adam", loss = args["loss"])
     model.summary()
-    
 
     # fit the model
     model.fit(train, epochs = cfg["epochs"])
