@@ -95,3 +95,13 @@ Dropping everything that does not depend on $\mu$ results in:
 
 ## Link dump
 https://github.com/google-research/vmf_embeddings/blob/main/vmf_embeddings/methods/methods.py
+
+
+## Euclidian Embedding of Cos, Sin
+```python
+wind_dir_rad = np.deg2rad(wind_direction)
+sin_dir = np.sin(wind_dir_rad)
+cos_dir = np.cos(wind_dir_rad)
+
+loss = MSE(pred_sin, true_sin) + MSE(pred_cos, true_cos)
+```
