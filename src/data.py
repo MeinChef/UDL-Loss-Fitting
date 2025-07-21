@@ -78,7 +78,7 @@ def dense_data(
         Prepares data for a dense model.
         :param df: The dataframe containing the data.
         :type df: np.ndarray, required
-        :param cfg: Configuration dictionary containing batch size.
+        :param cfg: Configuration dictionary containing the problem key.
         :type cfg: dict, required
         :return: Tuple of data and target arrays.
         :rtype: tuple[np.ndarray, np.ndarray]
@@ -87,8 +87,14 @@ def dense_data(
     # since the target of the "next hour" does not exist
     data = df[:-1]
     # for the "zero hour" there is no -1st datapoint
-    # and only direction as to be predicted
-    target = df[1:,2]
+    # and select the columns according to comment on line 39
+    if cfg["problem"] == "direction":
+        target = df[1:,2]
+    elif cfg["problem"] == "speed":
+        target = df[1:,1]
+    else:
+        raise ValueError(f"Got unknown 'Problem' key: {cfg['problem']}")
+    
 
     return data, target
 
@@ -108,7 +114,15 @@ def lstm_data(
 
     total = df.shape[0]
     data = df  # Use first two columns as data
-    target = df[cfg["seq_len"]:,2]  # Use third column as target
+
+    # target needs to start after the first sequence has ended
+    # and select the columns according to comment on line 39
+    if cfg["problem"] == "direction":
+        target = df[cfg["seq_len"]:,2]
+    elif cfg["problem"] == "speed":
+        target = df[cfg["seq_len"]:,1]
+    else:
+        raise ValueError(f"Got unknown 'Problem' key: {cfg['problem']}")
 
     lstm = np.full(
         shape = (total - cfg["seq_len"], cfg["seq_len"], 3), 
