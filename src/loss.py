@@ -40,9 +40,10 @@ class VonMisesFisher(keras.losses.Loss):
         y_pred = tf.math.l2_normalize(y_pred, axis = -1)
 
         # Dot product scaled by kappa
-        dot_product = tf.reduce_sum(y_true * y_pred, axis = -1)
-        loss = - self.kappa * dot_product
-        return loss  # shape: (batch,)
+        dot_product = - tf.reduce_sum(y_true * y_pred, axis = -1)
+        # tf.print("Dot Product Range: ", tf.reduce_min(dot_product), tf.reduce_max(dot_product))
+        # loss = self.kappa * dot_product
+        return dot_product  # shape: (batch,)
 
 class CosineSimilarity(keras.losses.Loss):
     def __init__(
@@ -112,4 +113,29 @@ class VonMises(keras.losses.Loss):
 
         # 1 - ... because cosine is already between -1 and 1,
         # thus this guarantees positivity.
-        return 1 - self.kappa * tf.math.cos(y_true - y_pred)
+        return 1 - tf.math.cos(y_true - y_pred)
+    
+
+class CustomMSE(keras.losses.Loss):
+    def __init__(
+            self, 
+            axis = 0,
+            reduction = "sum_over_batch_size",
+            name = "CMSE"
+    ):
+        super().__init__(
+            name = name,
+            reduction = reduction
+        )
+
+        self.axis = axis
+    
+    @tf.function
+    def call(self, y_true, y_pred):
+        return tf.math.reduce_sum(
+            tf.math.reduce_mean(
+                tf.math.square(y_true - y_pred),
+                axis = self.axis
+            ),
+            axis = -1
+        )
