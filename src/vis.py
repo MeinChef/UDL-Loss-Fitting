@@ -34,6 +34,7 @@ def visualise_data(
         )
     # remove any inf or nan values
     df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
+    df[:,2] = np.deg2rad(df[:,2])
 
     # make data accessible as numpy array
     # data = list(data)
@@ -41,14 +42,14 @@ def visualise_data(
     test = data[1].unbatch()
     dat = train.concatenate(test)
 
-    ds = np.full(
-        shape = df.shape, 
-        fill_value = np.nan,
-        dtype = np.float32
-    )
-    ds[:,:2] = np.asarray(list(dat.map(lambda x, y: x)))
-    ds[:,2] = np.asarray(list(dat.map(lambda x, y: y)))
-    breakpoint()
+    ds = np.asarray(list(dat.map(lambda x, y: x)))
+    # ds = np.full(
+    #     shape = df.shape, 
+    #     fill_value = np.nan,
+    #     dtype = np.float32
+    # )
+    # ds[:,:2] = np.asarray(list(dat.map(lambda x, y: x)))
+    # ds[:,2] = np.asarray(list(dat.map(lambda x, y: y)))
     
 
 
@@ -170,6 +171,8 @@ def vis_test_gt(model, data):
     # pred_1 = np.arccos(pred[:,1])
     # gt = gt[:,0]
     # pred = pred[:,0]
+    gt = np.arctan(gt[:,0]/gt[:,1])/2
+    pred = np.arctan(pred[:,0]/pred[:,1])/2
 
  
     fig, axes = plt.subplots(
@@ -254,7 +257,7 @@ if __name__ == "__main__":
     train, test = data.load_data(cfg)
 
     # visualise the data
-    fig = visualise_data((train, test), cfg = cfg, title="Training and Test Data Visualisation")
-    # fig = vis_trend(cfg)
+    # fig = visualise_data((train, test), cfg = cfg, title="Training and Test Data Visualisation")
+    fig = vis_trend(cfg)
     fig.show()
     breakpoint()
