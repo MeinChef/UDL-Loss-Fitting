@@ -179,13 +179,33 @@ def call(self, y_true, y_pred):
 
     return tf.reduce_sum(tf.multiply(y_true, y_pred))
 ```
+What I only realised after implementing that and trying to getting it to work, is that for having that working, a vector needs to be at least 2D. Which is not what we are predicting. We are predicting a singular value.
+And after searching on how to circumevent that problem, I found the following:
+[Angle to Vector](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) 
+And that directly leads to: 
 
 ## Embedding in Euclidian Space (MSE)
 
 Since we didn't have enough options (or enough working ones, see [Problems](#problems)), [this article](https://medium.com/@john_96423/the-wraparound-problem-predicting-angles-in-machine-learning-44786aa51b91) recommends to transform the angle with sine and cosine and apply the usual Mean Square Error problem on it.
 Since this requires now two predictions (one cosine and one sine), the model has to be adjusted to predict two values. This is done by the ["circular" model](./src/model.py#L30).
 
-Noteable is that for the loss the two predictions get their own loss calculation
+Noteable is that for the loss the two predictions get their own loss calculation respectively, which then get added.
+Per default the implementation in tensorflow for MSE is taking the mean of the -1st axis. But since our prediction is of the shape [batch_size, 2], we would be taking the mean of the sine/cosine.
+Our implementation uses the axis 0 instead, taking the mean of the batch and adding column one and two together.
+
+[The implementation](./src/loss.py#L131) is as follows:
+
+```python
+@tf.function
+def call(self, y_true, y_pred):
+    return tf.math.reduce_sum(
+        tf.math.reduce_mean(
+            tf.math.square(y_true - y_pred),
+            axis = self.axis
+        ),
+        axis = -1
+    )
+```
 
 ## Link dump
 https://github.com/google-research/vmf_embeddings/blob/main/vmf_embeddings/methods/methods.py
