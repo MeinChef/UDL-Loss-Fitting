@@ -27,7 +27,7 @@ def get_lstm_model(
     model = keras.models.Model(inputs = inputs, outputs = output)
     return model
 
-def get_circ_model(seq_len = 5, input_dim = 2):
+def get_circ_model(seq_len = 5, input_dim = 3):
     inputs = keras.Input(shape = (seq_len, input_dim))
     x = keras.layers.Bidirectional(keras.layers.LSTM(64, return_sequences = True))(inputs)
     
