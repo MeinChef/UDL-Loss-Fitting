@@ -18,165 +18,194 @@ def load_config(path: str = "config.yml") -> dict:
 
     return config
 
-def load_data(cfg: dict) -> tuple[tf.data.Dataset, tf.data.Dataset]:
-    """
-        A function to load a csv, path specified in config dictionary.
-        Returns Tuple of (Train, Test), where Train and Test are tf.data.Dataset objects.
+class DataLoader(object):
+    def __init__(
+            self,
+            cfg: dict
+        ) -> None:
+        
+        self.cfg = cfg
 
-        :param cfg: A Dictionary containing the key "data_path" (path to file), "data_name" (name of file) and "data_prep" (generated from network type).
-        :type cfg: dictionary, required
-
-        :return: Tuple of Dataloaders
-        :rtype: tuple[tf.data.Dataset, tf.data.Dataset]
-    """
-
-    # load csv with numpy
-    df = np.genfromtxt(
-        os.path.join(cfg["data_path"], cfg["data_name"]), 
-        dtype = np.float32,
-        delimiter = ";",
-        skip_header = 3,
-        # only use columns pressure, speed and direction
-        usecols = (2,6,4)
-        )
-    
-    # remove any inf or nan values
-    df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
-    # since the distributions are defined from -pi to pi, we need the direction in rad
-    df[:,2] = np.deg2rad(df[:,2])
-    
-    # different pipelines for data
-    if cfg["data_prep"] == "dense":
-        data, target =  dense_data(df, cfg)
-    elif cfg["data_prep"] == "lstm":
-        data, target = lstm_data(df, cfg)
-    elif cfg["data_prep"] == "circ":
-        data, target = circ_data(df, cfg)
-    else:
-        raise ValueError(f"Unknown data preparation type: {cfg['data_prep']}")
-
-    # shuffle for better distribution of training/test data
-    data, target = unison_shuffled_copies(data, target)
-
-    # turn them into dataloaders, and use the fi
-    train = tf.data.Dataset.from_tensor_slices((
-        data[:int(df.shape[0] * cfg["split"])], 
-        target[:int(df.shape[0] * cfg["split"])]
-        ))
-    
-    test = tf.data.Dataset.from_tensor_slices((
-        data[int(df.shape[0] * cfg["split"]):], 
-        target[int(df.shape[0] * cfg["split"]):]
-        ))
-
-    train = train.batch(cfg["batch"]).prefetch(tf.data.AUTOTUNE)
-    test  =  test.batch(cfg["batch"]).prefetch(tf.data.AUTOTUNE)
-
-    return train, test
-
-def dense_data(
-        df: np.ndarray, 
-        cfg: dict
-    ) -> tuple[np.ndarray, np.ndarray]:
-    """
-        Prepares data for a dense model.
-        :param df: The dataframe containing the data.
-        :type df: np.ndarray, required
-        :param cfg: Configuration dictionary containing the problem key.
-        :type cfg: dict, required
-        :return: Tuple of data and target arrays.
-        :rtype: tuple[np.ndarray, np.ndarray]
-    """
-    # last datapoint gets discarded
-    # since the target of the "next hour" does not exist
-    data = df[:-1]
-    # for the "zero hour" there is no -1st datapoint
-    # and select the columns according to comment on line 39
-    if cfg["problem"] == "direction":
-        target = df[1:,2]
-    elif cfg["problem"] == "speed":
-        target = df[1:,1]
-    else:
-        raise ValueError(f"Got unknown 'Problem' key: {cfg['problem']}")
     
 
-    return data, target
+    def load_data(
+            self
+        ) -> tuple[tf.data.Dataset, tf.data.Dataset]:
+        """
+            A function to load a csv, path specified in config dictionary.
+            Returns Tuple of (Train, Test), where Train and Test are tf.data.Dataset objects.
 
-def lstm_data(
-        df: np.ndarray,
-        cfg: dict
-    ) -> tuple[np.ndarray, np.ndarray]:
-    """
-        Prepares data for an LSTM model.
-        :param df: The dataframe containing the data.
-        :type df: np.ndarray, required
-        :param cfg: Configuration dictionary containing sequence length.
-        :type cfg: dict, required
-        :return: Tuple of data and target arrays.
-        :rtype: tuple[np.ndarray, np.ndarray]
-    """
+            :return: Tuple of Dataloaders: Training Data and Test Data
+            :rtype: tuple[tf.data.Dataset, tf.data.Dataset]
+        """
 
-    total = df.shape[0]
-    data = df  # Use first two columns as data
+        # load csv with numpy
+        df = np.genfromtxt(
+            os.path.join(self.cfg["data_path"], self.cfg["data_name"]), 
+            dtype = np.float32,
+            delimiter = ";",
+            skip_header = 3,
+            # only use columns pressure, speed and direction
+            usecols = (2,6,4)
+            )
+        
+        # remove any inf or nan values
+        df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
+        # since the distributions are defined from -pi to pi, we need the direction in rad
+        df[:,2] = np.deg2rad(df[:,2])
+        
+        # different pipelines for data
+        if self.cfg["data_prep"] == "dense":
+            data, target = self.dense_data_(df)
+        elif self.cfg["data_prep"] == "lstm":
+            data, target = self.lstm_data_(df)
+        elif self.cfg["data_prep"] == "circ":
+            data, target = self.circ_data_(df)
+        else:
+            raise ValueError(f"Unknown data preparation type: {self.cfg['data_prep']}")
 
-    # target needs to start after the first sequence has ended
-    # and select the columns according to comment on line 39
-    if cfg["problem"] == "direction":
-        target = df[cfg["seq_len"]:,2]
-    elif cfg["problem"] == "speed":
-        target = df[cfg["seq_len"]:,1]
-    else:
-        raise ValueError(f"Got unknown 'Problem' key: {cfg['problem']}")
+        # shuffle for better distribution of training/test data
+        data, target = unison_shuffled_copies(data, target)
 
-    lstm = np.full(
-        shape = (total - cfg["seq_len"], cfg["seq_len"], 3), 
-        fill_value = np.nan,
-        dtype = np.float32
-    )
+        # save in class
+        self.data = data
+        self.target = target
 
-    # construct LSTM data
-    for i in range(total - cfg["seq_len"]):
-        # use the past cfg["seq_len"] datapoints for one sample
-        lstm[i] = data[i:i+cfg["seq_len"]]
-    
-    return lstm, target
+        # turn them into dataloaders, and use the fi
+        train = tf.data.Dataset.from_tensor_slices((
+            data[:int(df.shape[0] * self.cfg["split"])], 
+            target[:int(df.shape[0] * self.cfg["split"])]
+            ))
+        
+        test = tf.data.Dataset.from_tensor_slices((
+            data[int(df.shape[0] * self.cfg["split"]):], 
+            target[int(df.shape[0] * self.cfg["split"]):]
+            ))
 
-def circ_data(
-        df: np.ndarray,
-        cfg: dict    
-    ) -> tuple[np.ndarray, np.ndarray]:
+        train = train.batch(self.cfg["batch"]).prefetch(tf.data.AUTOTUNE)
+        test  =  test.batch(self.cfg["batch"]).prefetch(tf.data.AUTOTUNE)
 
-    total = df.shape[0]
-    data = df
-    
+        return train, test
 
-    if cfg["problem"] != "direction": 
-        raise ValueError(f"Problem {cfg['problem']} is incompatible with data preparation for a circular model.")
+    def dense_data_(
+            self,
+            df: np.ndarray, 
+        ) -> tuple[np.ndarray, np.ndarray]:
+        """
+            Prepares data for a dense model.
 
-    # func = np.vectorize(lambda x: np.array([np.sin(x), np.cos(x)]))
-    
-    # target = func(df[cfg["seq_len"]:,2])
-    target = np.empty(
-        shape = (total - cfg["seq_len"], 2),
-        dtype = np.float32
-    )
+            :param df: The dataframe containing the data.
+            :type df: np.ndarray, required
+            :return: Tuple of data and target arrays.
+            :rtype: tuple[np.ndarray, np.ndarray]
+        """
+        # last datapoint gets discarded
+        # since the target of the "next hour" does not exist
+        data = df[:-1]
+        # for the "zero hour" there is no -1st datapoint
+        # and select the columns according to comment on line 39
+        if self.cfg["problem"] == "direction":
+            target = df[1:,2]
+        elif self.cfg["problem"] == "speed":
+            target = df[1:,1]
+        else:
+            raise ValueError(f"Got unknown 'Problem' key: {self.cfg['problem']}")
+        
 
-    lstm = np.full(
-            shape = (total - cfg["seq_len"], cfg["seq_len"], 3), 
+        return data, target
+
+    def lstm_data_(
+            self,
+            df: np.ndarray,
+        ) -> tuple[np.ndarray, np.ndarray]:
+        """
+            Prepares data for an LSTM model.
+
+            :param df: The dataframe containing the data.
+            :type df: np.ndarray, required
+            :return: Tuple of data and target arrays.
+            :rtype: tuple[np.ndarray, np.ndarray]
+        """
+
+        total = df.shape[0]
+        data = df  # Use first two columns as data
+
+        # target needs to start after the first sequence has ended
+        # and select the columns according to comment on line 39
+        if self.cfg["problem"] == "direction":
+            target = df[self.cfg["seq_len"]:,2]
+        elif self.cfg["problem"] == "speed":
+            target = df[self.cfg["seq_len"]:,1]
+        else:
+            raise ValueError(f"Got unknown 'Problem' key: {self.cfg['problem']}")
+
+        lstm = np.full(
+            shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
             fill_value = np.nan,
             dtype = np.float32
         )
-    # construct LSTM data
-    for i in range(total - cfg["seq_len"]):
-        # use the past cfg["seq_len"] datapoints for one sample
-        lstm[i] = data[i:i+cfg["seq_len"]]
 
-        target[i,:] = np.array([
-            np.sin(data[i+cfg["seq_len"],2]),
-            np.cos(data[i+cfg["seq_len"],2])
-        ])
+        # construct LSTM data
+        for i in range(total - self.cfg["seq_len"]):
+            # use the past self.cfg["seq_len"] datapoints for one sample
+            lstm[i] = data[i:i+self.cfg["seq_len"]]
+        
+        return lstm, target
+
+    def circ_data_(
+            self,
+            df: np.ndarray,
+        ) -> tuple[np.ndarray, np.ndarray]:
+
+        """
+            Prepares data for an LSTM model that predicts sine and cosine embedding of an angle.
+
+            :param df: The dataframe containing the data.
+            :type df: np.ndarray, required
+            :return: Tuple of data and target arrays.
+            :rtype: tuple[np.ndarray, np.ndarray]
+        """
+        total = df.shape[0]
+        data = df
+        
+
+        if self.cfg["problem"] != "direction": 
+            raise ValueError(f"Problem {self.cfg['problem']} is incompatible with data preparation for a circular model.")
+
+        # func = np.vectorize(lambda x: np.array([np.sin(x), np.cos(x)]))
+        
+        # target = func(df[self.cfg["seq_len"]:,2])
+        target = np.empty(
+            shape = (total - self.cfg["seq_len"], 2),
+            dtype = np.float32
+        )
+
+        lstm = np.full(
+                shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
+                fill_value = np.nan,
+                dtype = np.float32
+            )
+        # construct LSTM data
+        for i in range(total - self.cfg["seq_len"]):
+            # use the past self.cfg["seq_len"] datapoints for one sample
+            lstm[i] = data[i:i + self.cfg["seq_len"]]
+
+            target[i,:] = np.array([
+                np.sin(data[i + self.cfg["seq_len"],2]),
+                np.cos(data[i + self.cfg["seq_len"],2])
+            ])
+        
+        return lstm, target
     
-    return lstm, target
+    def get_data_numpy(
+            self
+        ) -> tuple[np.ndarray, np.ndarray]:
+        
+        if not self.data or not self.target:
+            _ = self.load_data()
+        
+        return self.data, self.target
+
 
 def unison_shuffled_copies(
         arr_0: np.ndarray, 
