@@ -1,10 +1,18 @@
+# from imports import os
+# from imports import logging
+# logging.disable(logging.WARNING)
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+
 import model as md
 import data
-import vis
+import vis_loss
+from loss import VonMisesFisher, CosineSimilarity, VonMises, CustomMSE
+
 from imports import os
 from imports import argparse
-from loss import VonMisesFisher, CosineSimilarity, VonMises, CustomMSE
 from imports import keras
+from imports import plt
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--problem",
         type = str,
-        choices = ["direction", "speed"],
+        choices = ["direction", "speed", "mnist"],
         default = "direction",
         help = "Chosse the type of problem to be solved. Which value is to be predicted: 'direction' or 'speed'. Speed is incompatible with model type 'circular'"
     )
@@ -92,19 +100,55 @@ if __name__ == "__main__":
     model, cfg = resolve_args(parsed_args, cfg)
 
     # load data
-    train, test = data.load_data(cfg)
+    loader = data.DataLoader(cfg)
+    train, test = loader.load_data()
     
-
     # compile the model
-    print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
     model.compile(optimizer = "adam", loss = cfg["loss"])
+
+    # print configurations
+    print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
     model.summary()
 
+    
+    # preparation for recording the training and visualising the loss surface
+    # initial state
+    training_path = [model.weights]
+    collect_weights = keras.callbacks.LambdaCallback(
+        on_epoch_end = (
+            lambda batch, logs: training_path.append(
+                    model.weights
+                )
+        )
+    )
+
+
     # fit the model
-    model.fit(train, epochs = cfg["epochs"])
-    # model.evaluate(test)
-    fig = vis.vis_test_gt(model, test)
-    fig.show()
-    for x, y in test:
-        breakpoint()
+    history = model.fit(
+        train, 
+        epochs = cfg["epochs"],
+        callbacks = collect_weights,
+        verbose = 1
+    )
+    model.evaluate(test)
+    # fig = vis.vis_test_gt(model, test)
+    # fig.show()
+
+    # create the loss surface
+    loss_surface = vis_loss.LossSurface(
+        model = model,
+        inputs = loader.data,
+        outputs = loader.target
+    )
+
+    coords = vis_loss.PCACoordinates(training_path)
+    loss_surface.compile(
+        points = 30,
+        coords = coords,
+        range = 5 
+    )
+
+    # and plot it
+    ax = loss_surface.plot(dpi = 300)
+    plt.show()
     breakpoint()
