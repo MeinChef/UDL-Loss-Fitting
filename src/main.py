@@ -23,17 +23,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model", 
         type = str, 
-        choices = ["dense", "lstm", "circular"], 
+        choices = ["dense", "lstm", "sine_cosine"], 
         default = "lstm",
-        help = "Choose the model type to run: 'dense', 'lstm' or 'circular'."
+        help = "Choose the model type to run: 'dense', 'lstm' or 'sine_cosine'."
     )
 
     parser.add_argument(
         "--loss",
         type = str,
-        choices = ["mse", "vMF","vM", "cosine"],
+        choices = ["mse","vM"],
         default = "mse",
-        help = "Choose the loss function to use: 'mse', 'vMF', 'vM', 'cosine'."
+        help = "Choose the loss function to use: 'mse', 'vM'."
     )
 
     return parser.parse_args()  
