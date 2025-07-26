@@ -29,11 +29,36 @@ $ conda activate udl
 ## Execute Program
 Once activated, navigate to the folder of the repository. Then you can execute the program using
 ```
-$ python src/main.py
+$ python src/main.py [FLAGS]
 ```
 
+## Flags
+### `--model`
+A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be define in `cfg/cfg.yml` with the key "seq_len".\
+Options:
+- `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
+![Picture of Network structure](./img/dense.png)
+- `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` datapoints. Structure is as follows:
+# TODO update picture 
+![Picture of LSTM Network structur](./img/lstm.png)
+- `circular` - The model structure is the same as the LSTM one, with the only difference that the last layer has two output neurons. This model is exclusively to be used with loss `mse`. The angle is embedded in euclidian space by transforming it with $\sin$ and $\cos$. 
+
+# TODO update loss.py and remove vMF, cosine, change circular to sine_cosine
+### `--loss`: 
+This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
+
+Options:
+- `mse` - The Mean Squared Error, as used in many state of the art networks. [Caveats and adjustments](#embedding-in-euclidian-space-mse)
+- `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
+
+# TODO nuke this
+### `--problem`:
+
+
 # Novelty in our Demo
-The visualizatition of the data in different graphics that weren't used before by someone else for this task.
+<!-- The visualizatition of the data in different graphics that weren't used b`--model`:
+efore by someone else for this task. -->
+The visualisation of the loss surface is done in a way that is not described in papers already.
 
 # Explanation of Losses
 
@@ -87,74 +112,6 @@ def call(self, y_true, y_pred):
     return 1 - self.kappa * tf.math.cos(y_true - y_pred)
 ```
 
-
-## von Mises-Fischer
-
-
-But since we are having three dimensions (speed, direction, pressure), a variant of the von Mises distribution, the _von Mises-Fischer Distribution_ that modifies the distribution to $p$ dimensions, could also be used. 
-
-```math
-\begin{align}
-    f_p (y|\mu,\kappa) &= C_p(\kappa)\exp\left(\kappa \mu^\top y\right)  \\
-    C_p(\kappa) &= \frac{\kappa^{p/2-1}}{(2\pi)^{p/2}I_{p/2-1}(\kappa)} 
-\end{align}
-```
-The modified version for three dimensions is defined as:
-
-```math
-\begin{align}
-    f_p (y|\mu,\kappa) = \frac{\kappa\exp(\kappa(\mu^\top y-1))}{2\pi(1-\exp(-2\kappa))}
-\end{align}
-```
-
-Let us now replace the variable $\mu$ with our model:
-
-```math
-\begin{align}
-    f_p (y|\mathbf{f\left[x_i, \phi\right]},\kappa) = \frac{\kappa\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y-1))}{2\pi(1-\exp(-2\kappa))}
-\end{align}
-```
-we assume $\kappa$ to be an unknown constant. 
-
-Constructing the negative Log-Likelihood with $i$ being an individual datapoint, and $I$ the dataset.
-
-```math
-\begin{align}
-    L[\mathbf{\phi}] &= - \sum_{i=1}^{I} \log \left[ Pr(y_i|\mathbf{f\left[x_i, \phi\right]}), \kappa \right] \\
-    &= - \sum_{i=1}^{I} \log \left[\frac{\kappa\exp\left(\kappa\left(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1\right)\right)}{2\pi(1-\exp(-2\kappa))} \right]  \\
-    &= - \sum_{i=1}^{I} \left[\log\left(\kappa\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1))\right) - \log \left(2\pi(1-\exp(-2\kappa))\right)\right]  \\
-    &= - \sum_{i=1}^{I} \left[\log\kappa + \log\left(\exp(\kappa(\mathbf{f\left[x_i, \phi\right]}^\top y_i-1))\right) - \log \left(2\pi(1-\exp(-2\kappa))\right) \right] \\
-    &= - \sum_{i=1}^{I} \left[ \log\kappa + \kappa y_i\mathbf{f\left[x_i, \phi\right]}^\top - \log \left(2\pi(1-\exp(-2\kappa))\right)\right] \\
-    &= -\left(N\log(\kappa) + \kappa \sum_{i=1}^{I} \mathbf{f\left[x_i, \phi\right]}^\top  y_i -\log\left(2\pi(1-\exp(-2\kappa))\right) \right)
-\end{align}
-```
-Dropping everything that does not depend on $\mu$ results in:
-
-```math
-\begin{align}
-    L[\mathbf{\phi}] &= - \kappa \sum_{i=1}^{I} \mathbf{f[x_i,\phi]}^\top y_i 
-\end{align}
-```
-
-Not much different to the [von Mises](#von-mises), as per design.
-[Code Sippet](./src/loss.py#L75):
-```python
-@tf.function
-def call(self, y_true, y_pred):
-    # Normalize to ensure unit vectors
-    y_true = tf.math.l2_normalize(y_true, axis = -1)
-    y_pred = tf.math.l2_normalize(y_pred, axis = -1)
-
-    # Dot product scaled by kappa
-    dot_product = - tf.reduce_sum(y_true * y_pred, axis = -1)
-    return self.kappa * dot_product 
-```
-
-
-[Reference for the formulas](https://jstraub.github.io/download/straub2017vonMisesFisherInference.pdf)
-
-
-
 ## Cosine-Similarity
 
 Another measurement that apparently should work is the Cosine-Similarity measurement. It measures how aligned two vectors are.
@@ -186,7 +143,9 @@ And that directly leads to:
 
 ## Embedding in Euclidian Space (MSE)
 
-Since we didn't have enough options (or enough working ones, see [Problems](#problems)), [this article](https://medium.com/@john_96423/the-wraparound-problem-predicting-angles-in-machine-learning-44786aa51b91) recommends to transform the angle with sine and cosine and apply the usual Mean Square Error problem on it.
+[This StackExchange post](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) talks about transforming an angle with sine and cosine to a headings vector on the unit circle. On these two values the Mean Square Error can be applied to it. 
+The same approach is also mentioned in [this article](https://medium.com/@john_96423/the-wraparound-problem-predicting-angles-in-machine-learning-44786aa51b91)
+
 Since this requires now two predictions (one cosine and one sine), the model has to be adjusted to predict two values. This is done by the ["circular" model](./src/model.py#L30).
 
 Noteable is that for the loss the two predictions get their own loss calculation respectively, which then get added.
@@ -207,26 +166,27 @@ def call(self, y_true, y_pred):
     )
 ```
 
-## Link dump
-https://github.com/google-research/vmf_embeddings/blob/main/vmf_embeddings/methods/methods.py
-
-
-## Euclidian Embedding of Cos, Sin
-```python
-wind_dir_rad = np.deg2rad(wind_direction)
-sin_dir = np.sin(wind_dir_rad)
-cos_dir = np.cos(wind_dir_rad)
-
-loss = MSE(pred_sin, true_sin) + MSE(pred_cos, true_cos)
-```
-
 # Problems
 
+Deep learning in itself is an optimsation problem of utmost complexity. In our problem we never got the network to remotely predict the data. Many different approaches were tried, using different losses and network structures.
+
+Often the test predictions looked like this (datapoints have been numbered `1` to `n`, since they don't have a y value anymore):
+
+![Bad test predictions, with the network predicting the same value for every datpoint](./img/lstm_150ep.png) 
+
+The loss during that drop off fast during the first epoch, but remained constant during the rest of the training.
+![Loss of the first five epochs, with a drop of loss from the first to the second epoch](./img/loss-lstm-5.png)
+![Loss of all epochs](./img/loss-lstm-150.png)
+
+
+The only thing we could remotely call success were using the LSTM model with the [sine/cosine embedding](#embedding-in-euclidian-space-mse):
+
+![Decent test predictions, with the predictions spread](./img/circ_150ep_cossin.png)
+
+The loss during this run also showed some significant improvements over the above run.
+
+![Loss of the LSTM model with the sine/cosine embedding](./img/loss-circ-150.png)
 
 TODO: 
-- make Readme pretty, write something about cosine-similarity
-- as well as about sine/cosine loss - and mention that that's the only thing that works
+
 - play around with hyperparams of optimiser
-- search internet for sine/cosine stuff
-- write about problems we ran into
-- look again at cosine similarity, make sure we're predicting speed **AND** direction (vector of dim 1 is stupid)
