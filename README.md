@@ -43,16 +43,12 @@ Options:
 ![Picture of LSTM Network structur](./img/lstm.png)
 - `circular` - The model structure is the same as the LSTM one, with the only difference that the last layer has two output neurons. This model is exclusively to be used with loss `mse`. The angle is embedded in euclidian space by transforming it with $\sin$ and $\cos$. 
 
-# TODO update loss.py and remove vMF, cosine, change circular to sine_cosine
 ### `--loss`: 
 This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
 
 Options:
 - `mse` - The Mean Squared Error, as used in many state of the art networks. [Caveats and adjustments](#embedding-in-euclidian-space-mse)
 - `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
-
-# TODO nuke this
-### `--problem`:
 
 
 # Novelty in our Demo
@@ -190,3 +186,4 @@ The loss during this run also showed some significant improvements over the abov
 TODO: 
 
 - play around with hyperparams of optimiser
+- update env.yml
