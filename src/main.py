@@ -36,14 +36,6 @@ def parse_args() -> argparse.Namespace:
         help = "Choose the loss function to use: 'mse', 'vMF', 'vM', 'cosine'."
     )
 
-    parser.add_argument(
-        "--problem",
-        type = str,
-        choices = ["direction", "speed", "mnist"],
-        default = "direction",
-        help = "Chosse the type of problem to be solved. Which value is to be predicted: 'direction' or 'speed'. Speed is incompatible with model type 'circular'"
-    )
-
     return parser.parse_args()  
 
 def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]:
@@ -58,37 +50,23 @@ def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]
         )
         cfg["data_prep"] = "lstm"
 
-    elif args.model.lower() == "circular":
-        model = md.get_circ_model(
+    elif args.model.lower() == "sine_cosine":
+        model = md.get_sincos_model(
             seq_len = cfg["seq_len"],
             input_dim = 3
         )
-        cfg["data_prep"] = "circ"
-        if args.problem.lower() == "speed":
-            raise ValueError(f"Options Model: {args.model} and Problem: {args.problem} are incompatible."\
-                             "\nPlease choose a different Model or Problem.")
-        
+        cfg["data_prep"] = "sine_cosine"
     else:
         raise ValueError(f"Unknown model type: {args.model}")
     cfg["model"] = args.model.lower()
 
-    if args.loss.lower() == "vmf":
-        cfg["loss"] = VonMisesFisher(
-            kappa = 1.0,
-            reduction = "sum_over_batch_size" 
-            )
-    elif args.loss.lower() == "vm":
+    if args.loss.lower() == "vm":
         cfg["loss"] = VonMises()
     elif args.loss.lower() == "mse":
         cfg["loss"] = CustomMSE(axis = 0)
-    elif args.loss.lower() == "cosine":
-        cfg["loss"] = CosineSimilarity()
-        # cfg["loss"] = "cosine_similarity"
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
     
-    cfg["problem"] = args.problem.lower()
-
     return model, cfg
 
 if __name__ == "__main__":
