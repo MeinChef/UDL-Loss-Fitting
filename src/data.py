@@ -26,8 +26,6 @@ class DataLoader(object):
         
         self.cfg = cfg
 
-    
-
     def load_data(
             self
         ) -> tuple[tf.data.Dataset, tf.data.Dataset]:
@@ -104,14 +102,7 @@ class DataLoader(object):
         data = df[:-1]
         # for the "zero hour" there is no -1st datapoint
         # and select the columns according to comment on line 39
-        if self.cfg["problem"] == "direction":
-            target = df[1:,2]
-        elif self.cfg["problem"] == "speed":
-            target = df[1:,1]
-        else:
-            raise ValueError(f"Got unknown 'Problem' key: {self.cfg['problem']}")
-        
-
+        target = df[1:,2]
         return data, target
 
     def lstm_data_(
@@ -128,16 +119,11 @@ class DataLoader(object):
         """
 
         total = df.shape[0]
-        data = df  # Use first two columns as data
+        data = df
 
         # target needs to start after the first sequence has ended
         # and select the columns according to comment on line 39
-        if self.cfg["problem"] == "direction":
-            target = df[self.cfg["seq_len"]:,2]
-        elif self.cfg["problem"] == "speed":
-            target = df[self.cfg["seq_len"]:,1]
-        else:
-            raise ValueError(f"Got unknown 'Problem' key: {self.cfg['problem']}")
+        target = df[self.cfg["seq_len"]:,2]
 
         lstm = np.full(
             shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
@@ -167,29 +153,25 @@ class DataLoader(object):
         """
         total = df.shape[0]
         data = df
-        
-
-        if self.cfg["problem"] != "direction": 
-            raise ValueError(f"Problem {self.cfg['problem']} is incompatible with data preparation for a circular model.")
-
-        # func = np.vectorize(lambda x: np.array([np.sin(x), np.cos(x)]))
-        
-        # target = func(df[self.cfg["seq_len"]:,2])
-        target = np.empty(
-            shape = (total - self.cfg["seq_len"], 2),
-            dtype = np.float32
-        )
-
+            
+        # initialize data and target arrays
         lstm = np.full(
                 shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
                 fill_value = np.nan,
                 dtype = np.float32
             )
+        
+        target = np.empty(
+            shape = (total - self.cfg["seq_len"], 2),
+            dtype = np.float32
+        )
+
         # construct LSTM data
         for i in range(total - self.cfg["seq_len"]):
             # use the past self.cfg["seq_len"] datapoints for one sample
             lstm[i] = data[i:i + self.cfg["seq_len"]]
 
+            # target is sine and cosine of the angle to be predicted
             target[i,:] = np.array([
                 np.sin(data[i + self.cfg["seq_len"],2]),
                 np.cos(data[i + self.cfg["seq_len"],2])
@@ -212,7 +194,7 @@ def unison_shuffled_copies(
         arr_1: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
     """
-        Shuffle two arrays in unison.
+        Convenience function to shuffle two arrays in unison.
         :param arr_0: First array to shuffle.
         :type arr_0: np.ndarray, required
         :param arr_1: Second array to shuffle.
