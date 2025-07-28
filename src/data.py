@@ -53,14 +53,12 @@ class DataLoader(object):
         df[:,2] = np.deg2rad(df[:,2])
         
         # different pipelines for data
-        if self.cfg["data_prep"] == "dense":
+        if self.cfg["model"] == "dense":
             data, target = self.dense_data_(df)
-        elif self.cfg["data_prep"] == "lstm":
+        elif self.cfg["model"] == "lstm":
             data, target = self.lstm_data_(df)
-        elif self.cfg["data_prep"] == "circ":
-            data, target = self.circ_data_(df)
         else:
-            raise ValueError(f"Unknown data preparation type: {self.cfg['data_prep']}")
+            raise ValueError(f"Unknown data preparation type: {self.cfg['model']}")
 
         # shuffle for better distribution of training/test data
         data, target = unison_shuffled_copies(data, target)

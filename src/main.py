@@ -37,7 +37,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--from-pretrained",
         action = "store_true",
-        help = "Optional argument. Load model weights from a pretrained checkpoint present in data/."
+        help = "Optional argument. If set loads model weights from a pretrained checkpoint and skips training."
+    )
+
+    parser.add_argument(
+        "--show-performance",
+        action = "store_true",
+        help = "Optional argument. If set visualises the models performance on the test set after training."
     )
 
     return parser.parse_args()  
@@ -60,26 +66,31 @@ def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]
                 f"{args.model}_{args.loss}.keras"
             ),
             compile = False
-        )      
+        )
+        cfg["train"] = False
+
     else:
         if args.model.lower() == "dense":
             model = get_dense_model(
                 num_out = cfg["out"]
             )
-            cfg["data_prep"] = "dense"
 
         elif args.model.lower() == "lstm":
             model = get_lstm_model(
                 seq_len = cfg["seq_len"],
                 num_out = cfg["out"]
             )
-            cfg["data_prep"] = "lstm"
 
         else:
             raise ValueError(f"Unknown model type: {args.model}")
+        cfg["train"] = True
+
     cfg["model"] = args.model.lower()
 
-
+    if args.show_performance:
+        cfg["visualise_test"] = args.show_performance
+    else:
+        cfg["visualise_test"] = False
     
     return model, cfg
 
@@ -102,29 +113,36 @@ if __name__ == "__main__":
     print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
     model.summary()
 
-    # preparation for recording the training and visualising the loss surface
-    # initial state
-    training_path = [model.weights]
-    collect_weights = keras.callbacks.LambdaCallback(
-        on_epoch_end = (
-            lambda batch, logs: training_path.append(
-                    model.weights
-                )
-        )
-    )
-
-
-    # fit the model
-    history = model.fit(
-        train, 
-        epochs = cfg["epochs"],
-        callbacks = collect_weights,
-        verbose = 1
-    )
-
-    model.evaluate(test)
-    figure = vis_test_gt(model, test)
     breakpoint()
+    if cfg["train"]:
+        # preparation for recording the training and visualising the loss surface
+        # initial state
+        training_path = [model.weights]
+        collect_weights = keras.callbacks.LambdaCallback(
+            on_epoch_end = (
+                lambda batch, logs: training_path.append(
+                        model.weights
+                    )
+            )
+        )
+
+
+        # fit the model
+        history = model.fit(
+            train, 
+            epochs = cfg["epochs"],
+            callbacks = collect_weights,
+            verbose = 1
+        )
+
+        model.evaluate(test)
+
+        if cfg["visualise_test"]:
+            figure = vis_test_gt(model, test)
+            figure.show()
+
+    else:
+        raise NotImplementedError()
 
     # create the loss surface
     loss_surface = LossSurface(
