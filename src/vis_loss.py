@@ -18,9 +18,9 @@ from imports import skd
 class LossSurface(object):
     def __init__(
             self, 
-            model, 
-            inputs, 
-            outputs
+            model: keras.Model, 
+            inputs: tf.Tensor, 
+            outputs: tf.Tensor
         ) -> None:
         
         self.model_ = model
@@ -29,8 +29,8 @@ class LossSurface(object):
 
     def compile(
             self, 
-            range, 
-            points, 
+            range: float, 
+            points: int, 
             coords
         ) -> None:
         a_grid = tf.linspace(-1.0, 1.0, num = points) ** 3 * range
@@ -51,8 +51,8 @@ class LossSurface(object):
 
     def plot(
             self,
-            levels = 20, 
-            ax = None, 
+            levels: int = 20, 
+            ax: plt.Axes = None, 
             **kwargs
         ) -> plt.Axes :
 
@@ -87,18 +87,28 @@ class LossSurface(object):
         return ax
 
 class PCACoordinates(object):
-    def __init__(self, training_path):
+    def __init__(
+            self, 
+            training_path: list[tf.Tensor]
+        ) -> None:
         origin = training_path[-1]
         self.pca_, self.components = get_path_components(training_path)
         self.set_origin(origin)
 
-    def __call__(self, a, b):
+    def __call__(
+            self, 
+            a: float, 
+            b: float
+        ) -> tf.Tensor:
         return [
             a * w0 + b * w1 + wc
             for w0, w1, wc in zip(self.v0_, self.v1_, self.origin_)
         ]
 
-    def set_origin(self, origin, renorm = True):
+    def set_origin(self,
+            origin: list[tf.Tensor], 
+            renorm: bool = True
+        ) -> None:
         self.origin_ = origin
         if renorm:
             self.v0_ = normalize_weights(self.components[0], origin)
@@ -142,7 +152,13 @@ def vector_to_parameters(
 def paramlist_to_matrix(
         param_list:list    
     ) -> tf.Tensor:
-    
+    """
+    Convenience function to convert a list of model weights into a matrix.
+    :param param_list: List of model weights.
+    :type param_list: list[tf.Tensor]
+    :return: Tensor of shape (num_params, num_models)
+    :rtype: tf.Tensor
+    """
     vec_list = []
     for weights in param_list:
         vec_list.append(parameters_to_vector(weights))
@@ -157,6 +173,7 @@ def shape_weight_matrix_like(
         example: list
     ) -> tf.Tensor:
     """
+    Convenience function to reshape a weight matrix to the shape of the model's weights.
     :param weight_matrix: Tensor of shape (num_params, num_models)
     :type weight_matrix: tf.Tensor
     :param example: the weights of the model, used for shape matching
@@ -187,6 +204,17 @@ def get_path_components(
         training_path, 
         n_components = 2
     ) -> tuple:
+
+    """
+    Convenience function to get the PCA components of a training path.
+    :param training_path: List of model weights.
+    :type training_path: list[tf.Tensor]
+    :param n_components: Number of components to return.
+    :type n_components: int
+    :return: PCA object and components.
+    :rtype: tuple[sklearn.decomposition.PCA, tf.Tensor]
+    """
+
     # Vectorize network weights
     weight_matrix = paramlist_to_matrix(training_path)
 
