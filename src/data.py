@@ -103,6 +103,18 @@ class DataLoader(object):
         # for the "zero hour" there is no -1st datapoint
         # and select the columns according to comment on line 39
         target = df[1:,2]
+
+        # if we are calculating the MSE and have the target values mapped to Euklidian space
+        # we need to apply the sine and cosine to the target column
+        if self.cfg["out"] == 2:
+            target = np.stack(
+                [
+                    np.sin(target),
+                    np.cos(target)
+                ],
+                axis = 1
+            )
+
         return data, target
 
     def lstm_data_(
@@ -125,6 +137,16 @@ class DataLoader(object):
         # and select the columns according to comment on line 39
         target = df[self.cfg["seq_len"]:,2]
 
+        # and if we are doing mse again, we need sine and cosine
+        if self.cfg["out"] == 2:
+            target = np.stack(
+                [
+                    np.sin(target),
+                    np.cos(target)
+                ],
+                axis = 1
+            )
+
         lstm = np.full(
             shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
             fill_value = np.nan,
@@ -137,49 +159,8 @@ class DataLoader(object):
             lstm[i] = data[i:i+self.cfg["seq_len"]]
         
         return lstm, target
-
-    def circ_data_(
-            self,
-            df: np.ndarray,
-        ) -> tuple[np.ndarray, np.ndarray]:
-
-        """
-            Prepares data for an LSTM model that predicts sine and cosine embedding of an angle.
-
-            :param df: The dataframe containing the data.
-            :type df: np.ndarray, required
-            :return: Tuple of data and target arrays.
-            :rtype: tuple[np.ndarray, np.ndarray]
-        """
-        total = df.shape[0]
-        data = df
-            
-        # initialize data and target arrays
-        lstm = np.full(
-                shape = (total - self.cfg["seq_len"], self.cfg["seq_len"], 3), 
-                fill_value = np.nan,
-                dtype = np.float32
-            )
-        
-        target = np.empty(
-            shape = (total - self.cfg["seq_len"], 2),
-            dtype = np.float32
-        )
-
-        # construct LSTM data
-        for i in range(total - self.cfg["seq_len"]):
-            # use the past self.cfg["seq_len"] datapoints for one sample
-            lstm[i] = data[i:i + self.cfg["seq_len"]]
-
-            # target is sine and cosine of the angle to be predicted
-            target[i,:] = np.array([
-                np.sin(data[i + self.cfg["seq_len"],2]),
-                np.cos(data[i + self.cfg["seq_len"],2])
-            ])
-        
-        return lstm, target
     
-    def get_data_numpy(
+    def get_data_as_numpy(
             self
         ) -> tuple[np.ndarray, np.ndarray]:
         

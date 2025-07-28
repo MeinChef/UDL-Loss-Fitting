@@ -1,13 +1,7 @@
-# from imports import os
-# from imports import logging
-# logging.disable(logging.WARNING)
-# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-
-import model as md
-import data
-import vis_loss
-from loss import VonMisesFisher, CosineSimilarity, VonMises, CustomMSE
+from data import DataLoader, load_config
+from model import get_dense_model, get_lstm_model
+from loss import VonMises, CustomMSE
+from vis_loss import PCACoordinates, LossSurface
 
 from imports import os
 from imports import argparse
@@ -23,9 +17,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model", 
         type = str, 
-        choices = ["dense", "lstm", "sine_cosine"], 
+        choices = ["dense", "lstm"], 
         default = "lstm",
-        help = "Choose the model type to run: 'dense', 'lstm' or 'sine_cosine'."
+        help = "Choose the model type to run: 'dense', 'lstm'."
     )
 
     parser.add_argument(
@@ -40,32 +34,34 @@ def parse_args() -> argparse.Namespace:
 
 def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]:
 
+    if args.loss.lower() == "vm":
+        cfg["loss"] = VonMises()
+        cfg["out"] = 1
+    elif args.loss.lower() == "mse":
+        cfg["loss"] = CustomMSE(axis = 0)
+        cfg["out"] = 2
+    else:
+        raise ValueError(f"Unknown loss function: {args.loss}")
+
+
     if args.model.lower() == "dense":
-        model = md.get_dense_model()
+        model = get_dense_model(
+            num_out = cfg["out"]
+        )
         cfg["data_prep"] = "dense"
 
     elif args.model.lower() == "lstm":
-        model = md.get_lstm_model(
-            seq_len = cfg["seq_len"]
+        model = get_lstm_model(
+            seq_len = cfg["seq_len"],
+            num_out = cfg["out"]
         )
         cfg["data_prep"] = "lstm"
 
-    elif args.model.lower() == "sine_cosine":
-        model = md.get_sincos_model(
-            seq_len = cfg["seq_len"],
-            input_dim = 3
-        )
-        cfg["data_prep"] = "sine_cosine"
     else:
         raise ValueError(f"Unknown model type: {args.model}")
     cfg["model"] = args.model.lower()
 
-    if args.loss.lower() == "vm":
-        cfg["loss"] = VonMises()
-    elif args.loss.lower() == "mse":
-        cfg["loss"] = CustomMSE(axis = 0)
-    else:
-        raise ValueError(f"Unknown loss function: {args.loss}")
+
     
     return model, cfg
 
@@ -74,11 +70,11 @@ if __name__ == "__main__":
     parsed_args = parse_args()
     
     # fetch config
-    cfg = data.load_config(os.path.join("cfg", "cfg.yml"))
+    cfg = load_config(os.path.join("cfg", "cfg.yml"))
     model, cfg = resolve_args(parsed_args, cfg)
 
     # load data
-    loader = data.DataLoader(cfg)
+    loader = DataLoader(cfg)
     train, test = loader.load_data()
     
     # compile the model
@@ -88,7 +84,6 @@ if __name__ == "__main__":
     print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
     model.summary()
 
-    
     # preparation for recording the training and visualising the loss surface
     # initial state
     training_path = [model.weights]
@@ -108,18 +103,17 @@ if __name__ == "__main__":
         callbacks = collect_weights,
         verbose = 1
     )
+
     model.evaluate(test)
-    # fig = vis.vis_test_gt(model, test)
-    # fig.show()
 
     # create the loss surface
-    loss_surface = vis_loss.LossSurface(
+    loss_surface = LossSurface(
         model = model,
         inputs = loader.data,
         outputs = loader.target
     )
 
-    coords = vis_loss.PCACoordinates(training_path)
+    coords = PCACoordinates(training_path)
     loss_surface.compile(
         points = 30,
         coords = coords,
