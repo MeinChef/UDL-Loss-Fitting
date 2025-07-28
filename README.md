@@ -40,15 +40,13 @@ Options:
 - `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
 ![Picture of Network structure](./img/dense.png)
 - `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` datapoints. Structure is as follows:
-# TODO update picture 
 ![Picture of LSTM Network structur](./img/lstm.png)
-- `circular` - The model structure is the same as the LSTM one, with the only difference that the last layer has two output neurons. This model is exclusively to be used with loss `mse`. The angle is embedded in euclidian space by transforming it with $\sin$ and $\cos$. 
 
-### `--loss`: 
+### `--loss`
 This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
 
 Options:
-- `mse` - The Mean Squared Error, as used in many state of the art networks. [Caveats and adjustments](#embedding-in-euclidian-space-mse)
+- `mse` - The Mean Squared Error, as used in many state of the art networks. [Deviation from default implementation](#embedding-in-euclidian-space-mse)
 - `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
 
 
@@ -143,8 +141,6 @@ And that directly leads to:
 [This StackExchange post](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) talks about transforming an angle with sine and cosine to a headings vector on the unit circle. On these two values the Mean Square Error can be applied to it. 
 The same approach is also mentioned in [this article](https://medium.com/@john_96423/the-wraparound-problem-predicting-angles-in-machine-learning-44786aa51b91)
 
-Since this requires now two predictions (one cosine and one sine), the model has to be adjusted to predict two values. This is done by the ["circular" model](./src/model.py#L30).
-
 Noteable is that for the loss the two predictions get their own loss calculation respectively, which then get added.
 Per default the implementation in tensorflow for MSE is taking the mean of the -1st axis. But since our prediction is of the shape [batch_size, 2], we would be taking the mean of the sine/cosine.
 Our implementation uses the axis 0 instead, taking the mean of the batch and adding column one and two together.
@@ -172,8 +168,8 @@ Often the test predictions looked like this (datapoints have been numbered `1` t
 ![Bad test predictions, with the network predicting the same value for every datpoint](./img/lstm_150ep.png) 
 
 The loss during that drop off fast during the first epoch, but remained constant during the rest of the training.
-![Loss of the first five epochs, with a drop of loss from the first to the second epoch](./img/loss-lstm-5.png)
-![Loss of all epochs](./img/loss-lstm-150.png)
+![Loss of the first five epochs, with a drop of loss from the first to the second epoch](./img/loss-lstm-5.png | width=150)
+![Loss of all epochs](./img/loss-lstm-150.png | width=150)
 
 
 The only thing we could remotely call success were using the LSTM model with the [sine/cosine embedding](#embedding-in-euclidian-space-mse):
