@@ -168,9 +168,9 @@ Often the test predictions looked like this (datapoints have been numbered `1` t
 ![Bad test predictions, with the network predicting the same value for every datpoint](./img/lstm_150ep.png) 
 
 The loss during that drop off fast during the first epoch, but remained constant during the rest of the training.
-![Loss of the first five epochs, with a drop of loss from the first to the second epoch](./img/loss-lstm-5.png | width=150)
-![Loss of all epochs](./img/loss-lstm-150.png | width=150)
 
+<img src="./img/loss-lstm-5.png" alt="Loss of the first five epochs, with a drop of loss from the first to the second epoch" width="500"/>
+<img src="./img/loss-lstm-150.png" alt="Loss of all epochs" width="500">
 
 The only thing we could remotely call success were using the LSTM model with the [sine/cosine embedding](#embedding-in-euclidian-space-mse):
 
