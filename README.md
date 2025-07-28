@@ -1,4 +1,4 @@
-![Python Version](https://img.shields.io/badge/python-3.8--3.11-blue.svg)
+![Python Version](https://img.shields.io/badge/python-3.12-blue.svg)
 
 # UDL-Loss-Fitting
 Repository for the SummerSemester 2025 Course "Understanding Deep Learning", at [University Osnabrück](https://www.uni-osnabrueck.de/)
@@ -14,22 +14,20 @@ Then selecting the components
 
 We selected "Stundenwerte" (hourly measurements) in the timeframe 12.02.2025 through 12.05.2025. The data was downloaded on 13.05.2025 at 00:01.
 
-# TODO
-More about why the data or our model is bad, in [this section](#problems)
-
 # Quickstart
 ## Create environment
-You can create the environment needed for this project using:
-```
-$ conda env create -f env.yml python=3.11
+You can create the environment needed for this project using the env_[].yml file.
+We provided two environment files, one containing the neccessary cuda libraries , and one without. Replace the `[placeholder]` in the command with either `cuda` or `cpu`
+```bash
+$ conda env create -f env_[placeholder].yml python=3.11
 ```
 After creating the environment, you can activate it using the following command:
-```
-$ conda activate udl
+```bash
+$ conda activate udl-loss
 ```
 ## Execute Program
 Once activated, navigate to the folder of the repository. Then you can execute the program using
-```
+```bash
 $ python src/main.py [FLAGS]
 ```
 
