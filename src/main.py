@@ -2,6 +2,7 @@ from data import DataLoader, load_config
 from model import get_dense_model, get_lstm_model
 from loss import VonMises, CustomMSE
 from vis_loss import PCACoordinates, LossSurface
+from vis_data import vis_test_gt
 
 from imports import os
 from imports import argparse
@@ -19,15 +20,24 @@ def parse_args() -> argparse.Namespace:
         type = str, 
         choices = ["dense", "lstm"], 
         default = "lstm",
-        help = "Choose the model type to run: 'dense', 'lstm'."
+        help = "Optional argument. Choose the model type to run: 'dense', 'lstm'. " +
+                "Visualisations for the different models can be found in img/.\nDefault: lstm"
     )
 
     parser.add_argument(
         "--loss",
         type = str,
-        choices = ["mse","vM"],
+        choices = ["mse","vm"],
         default = "mse",
-        help = "Choose the loss function to use: 'mse', 'vM'."
+        help = "Optional argument. Choose the loss function to use: 'mse', 'vm'. " +
+        "The loss functions are defined in src/loss.py. 'vm' refers to the von Mises loss."+
+        "\nDefault: mse"
+    )
+
+    parser.add_argument(
+        "--from-pretrained",
+        action = "store_true",
+        help = "Optional argument. Load model weights from a pretrained checkpoint present in data/."
     )
 
     return parser.parse_args()  
@@ -43,22 +53,30 @@ def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
 
-
-    if args.model.lower() == "dense":
-        model = get_dense_model(
-            num_out = cfg["out"]
-        )
-        cfg["data_prep"] = "dense"
-
-    elif args.model.lower() == "lstm":
-        model = get_lstm_model(
-            seq_len = cfg["seq_len"],
-            num_out = cfg["out"]
-        )
-        cfg["data_prep"] = "lstm"
-
+    if args.from_pretrained:
+        model = keras.saving.load_model(
+            os.path.join(
+                cfg["data_path"], 
+                f"{args.model}_{args.loss}.keras"
+            ),
+            compile = False
+        )      
     else:
-        raise ValueError(f"Unknown model type: {args.model}")
+        if args.model.lower() == "dense":
+            model = get_dense_model(
+                num_out = cfg["out"]
+            )
+            cfg["data_prep"] = "dense"
+
+        elif args.model.lower() == "lstm":
+            model = get_lstm_model(
+                seq_len = cfg["seq_len"],
+                num_out = cfg["out"]
+            )
+            cfg["data_prep"] = "lstm"
+
+        else:
+            raise ValueError(f"Unknown model type: {args.model}")
     cfg["model"] = args.model.lower()
 
 
@@ -105,6 +123,8 @@ if __name__ == "__main__":
     )
 
     model.evaluate(test)
+    figure = vis_test_gt(model, test)
+    breakpoint()
 
     # create the loss surface
     loss_surface = LossSurface(
