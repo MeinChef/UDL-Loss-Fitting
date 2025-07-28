@@ -1,7 +1,6 @@
 from imports import plt
 from imports import numpy as np
 from imports import os
-import data
 
 def visualise_data(
         data: tuple,
@@ -37,21 +36,11 @@ def visualise_data(
     df[:,2] = np.deg2rad(df[:,2])
 
     # make data accessible as numpy array
-    # data = list(data)
     train = data[0].unbatch()
     test = data[1].unbatch()
     dat = train.concatenate(test)
 
     ds = np.asarray(list(dat.map(lambda x, y: x)))
-    # ds = np.full(
-    #     shape = df.shape, 
-    #     fill_value = np.nan,
-    #     dtype = np.float32
-    # )
-    # ds[:,:2] = np.asarray(list(dat.map(lambda x, y: x)))
-    # ds[:,2] = np.asarray(list(dat.map(lambda x, y: y)))
-    
-
 
 
     fig, axes = plt.subplots(
@@ -85,70 +74,6 @@ def visualise_data(
         cmap = "viridis",
         alpha = 0.75
     )
-
-    # for lstm take average of direction/speed and compare to the target
-
-    return fig
-
-
-
-
-def visualise_loss_surface():
-    raise NotImplementedError("Visualisation of the loss surface is not implemented yet.")
-
-def vis_trend(cfg: dict) -> plt:
-
-    df = np.genfromtxt(
-        os.path.join(cfg["data_path"], cfg["data_name"]), 
-        dtype = np.float32,
-        delimiter = ";",
-        skip_header = 3,
-        # only use columns pressure, speed and direction
-        usecols = (2,6,4)
-        )
-    # remove any inf or nan values
-    df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
-    dir = df[:,1:]
-    dir = np.deg2rad(dir)
-    save = np.empty(
-        (len(dir) - 1,),
-        dtype = np.float32
-    )
-    
-    def angle_btwn_vec(a,b):
-        # Calculate dot product
-        dot_product = np.dot(a, b)
-
-        # Calculate magnitudes (lengths of the vectors)
-        magnitude_a = np.linalg.norm(a)
-        magnitude_b = np.linalg.norm(b)
-
-        # Calculate angle in radians
-        angle_radians = np.arccos(dot_product / (magnitude_a * magnitude_b))
-        return angle_radians
-    
-    for i in range(len(dir) - 1):
-        save[i] = angle_btwn_vec(dir[i], dir[i+1])
-
-    fig, axes = plt.subplots(
-        nrows = 1,
-        ncols = 1,
-        figsize = (6, 6),
-        subplot_kw = {'projection': 'polar'}
-    )
-
-    axes.set_title("Change in Direction in regard to previous hour")
-    axes.grid(True)
-    axes.set_theta_zero_location("N")
-    # axes.set_thetamax(355)
-    # axes.set_thetamin(90)
-    axes.scatter(
-        x = save,
-        y = df[1:,1],
-        # c = df[:,0],
-        cmap = "viridis",
-        alpha = 0.75
-    )
     return fig
 
 
@@ -163,25 +88,25 @@ def vis_test_gt(model, data):
         pred.append(model(x))
         gt.append(y)
 
+    # dimension zero is the batch_size
+    out = len(gt[0].shape)
     gt = np.concatenate(gt)
     pred = np.concatenate(pred).squeeze()
-    # gt[:,0] = np.arcsin(gt[:,0])
-    # pred[:,0] = np.arcsin(pred[:,0])
-    # gt_1 = np.arccos(gt[:,1])
-    # pred_1 = np.arccos(pred[:,1])
-    # gt = gt[:,0]
-    # pred = pred[:,0]
-    gt = np.arctan(gt[:,0]/gt[:,1])/2
-    pred = np.arctan(pred[:,0]/pred[:,1])/2
+    
+    if out == 2:
+        gt = np.arctan2(gt[:,1], gt[:,0])
+        pred = np.arctan2(pred[:,1], pred[:,0])
 
- 
+
     fig, axes = plt.subplots(
         nrows = 1,
         ncols = 3,
-        figsize = (18, 12),
+        figsize = (18,6),
         subplot_kw = {'projection': 'polar'}
     )
 
+    # we are just plotting the samples from inward out, 
+    # since they do not have a speed attribute anymore
     axes[0].set_title("Ground Truth")
     axes[0].grid(True)
     axes[0].set_theta_zero_location("N")
@@ -206,58 +131,20 @@ def vis_test_gt(model, data):
     axes[2].grid(True)
     axes[2].set_theta_zero_location("N")
     axes[2].scatter(
-        x = np.concatenate([gt, pred]),
-        y = np.concatenate([np.linspace(0,1,len(gt)), np.linspace(0,1,len(pred))]),
-        c = np.concatenate([np.zeros_like(gt), np.ones_like(pred)]),
+        x = np.concatenate([
+            gt, 
+            pred
+        ]),
+        y = np.concatenate([
+            np.linspace(0,1,len(gt)), 
+            np.linspace(0,1,len(pred))
+        ]),
+        c = np.concatenate([
+            np.zeros_like(gt), 
+            np.ones_like(pred)
+        ]),
         cmap = "viridis",
         alpha = 0.75
     )
 
-
-    # axes[0,0].set_title("Ground Truth")
-    # axes[0,0].grid(True)
-    # axes[0,0].set_theta_zero_location("N")
-    # axes[0,0].scatter(
-    #     x = gt_1,
-    #     y = np.linspace(0,1,len(gt_1)),
-    #     color = "orange",
-    #     alpha = 0.75
-    # )
-
-    # axes[0,1].set_title("Predictions")
-    # axes[0,1].grid(True)
-    # axes[0,1].set_theta_zero_location("N")
-    # axes[0,1].scatter(
-    #     x = pred_1,
-    #     y = np.linspace(0,1,len(pred_1)),
-    #     color = "blue",
-    #     alpha = 0.75
-    # )
-
-    # axes[0,2].set_title("Overlapping")
-    # axes[0,2].grid(True)
-    # axes[0,2].set_theta_zero_location("N")
-    # axes[0,2].scatter(
-    #     x = np.concatenate([gt_1, pred_1]),
-    #     y = np.concatenate([np.linspace(0,1,len(gt_1)), np.linspace(0,1,len(pred_1))]),
-    #     c = np.concatenate([np.zeros_like(gt_1), np.ones_like(pred_1)]),
-    #     cmap = "viridis",
-    #     alpha = 0.75
-    # )
-
     return fig
-
-if __name__ == "__main__":
-    # load config
-    cfg = data.load_config("cfg/cfg.yml")
-    cfg["data_prep"] = 'dense'
-    cfg["problem"] = 'direction'
-
-    # load data
-    train, test = data.load_data(cfg)
-
-    # visualise the data
-    # fig = visualise_data((train, test), cfg = cfg, title="Training and Test Data Visualisation")
-    fig = vis_trend(cfg)
-    fig.show()
-    breakpoint()
