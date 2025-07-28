@@ -51,9 +51,7 @@ Options:
 
 
 # Novelty in our Demo
-<!-- The visualizatition of the data in different graphics that weren't used b`--model`:
-efore by someone else for this task. -->
-The visualisation of the loss surface is done in a way that is not described in papers already.
+The visualisation of the loss surface is done in a way that is not described in common literature. We refined already existing, but hard to read ones.
 
 # Explanation of Losses
 
@@ -95,7 +93,7 @@ Since the second term does not depend on $\mu$, it can be assumed constant and d
 \end{align}
 ```
 
-In [our code](./src/loss.py#L38) this looks like the follows:
+In [our code](./src/loss.py#L34) this looks like the follows:
 ```python
 @tf.function
 def call(self, y_true, y_pred):
@@ -120,7 +118,7 @@ Cosine similarity between two vector is defined as follows:
 \end{align}
 ```
 Where $\Vert A \Vert$ is the magnitude of the vector.
-The [code](./src/loss.py#L109) reads as follows:
+The code read as follows:
 
 ```python
 @tf.function
@@ -131,10 +129,9 @@ def call(self, y_true, y_pred):
 
     return tf.reduce_sum(tf.multiply(y_true, y_pred))
 ```
-What I only realised after implementing that and trying to getting it to work, is that for having that working, a vector needs to be at least 2D. Which is not what we are predicting. We are predicting a singular value.
-And after searching on how to circumevent that problem, I found the following:
-[Angle to Vector](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) 
-And that directly leads to: 
+What I only realised after implementing that and trying to getting it to work, is that for having that working, a vector needs to be at least 2D. Which is not what we are predicting. We are predicting a singular value - the angle. \
+After researching on how to circumevent that problem, I found that it is a common thing to transform an [angle to a vector](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) on the unit circle. \
+This directly leads to our next approach: 
 
 ## Embedding in Euclidian Space (MSE)
 
@@ -145,7 +142,7 @@ Noteable is that for the loss the two predictions get their own loss calculation
 Per default the implementation in tensorflow for MSE is taking the mean of the -1st axis. But since our prediction is of the shape [batch_size, 2], we would be taking the mean of the sine/cosine.
 Our implementation uses the axis 0 instead, taking the mean of the batch and adding column one and two together.
 
-[The implementation](./src/loss.py#L131) is as follows:
+[The implementation](./src/loss.py#L57) is as follows:
 
 ```python
 @tf.function
@@ -174,7 +171,7 @@ The loss during that drop off fast during the first epoch, but remained constant
 
 The only thing we could remotely call success were using the LSTM model with the [sine/cosine embedding](#embedding-in-euclidian-space-mse):
 
-![Decent test predictions, with the predictions spread](./img/circ_150ep_cossin.png)
+![Decent test predictions, with the predictions spread](./img/lstm_sincos_150ep.png)
 
 The loss during this run also showed some significant improvements over the above run.
 
