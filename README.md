@@ -166,13 +166,13 @@ Often the test predictions looked like this (datapoints have been numbered `1` t
 
 The loss during that drop off fast during the first epoch, but remained constant during the rest of the training.
 
-<img src="./img/loss-vM-5.png" alt="Loss of the first five epochs, with a drop of loss from the first to the second epoch" width="350"/> <img src="./img/loss-vM.png" alt="Loss of all epochs" width="350">
+<img src="./img/loss-vM-5.png" alt="Loss of the first five epochs, with a drop of loss from the first to the second epoch" width="400"/> <img src="./img/loss-vM.png" alt="Loss of all epochs" width="400">
 
 The only thing we could remotely call success were using the [sine/cosine embedding](#embedding-in-euclidian-space-mse). Below the LSTM model:
 
 ![Decent test predictions, with the predictions spread](./img/lstm_sincos_150ep.png)
 
-The loss for both models also showed some significant improvements over the above run.
+The loss for both models also showed some significant improvements over the above von Mises loss.
 
 ![Loss of the LSTM model with the sine/cosine embedding](./img/loss-sincos.png)
 
