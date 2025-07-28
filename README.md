@@ -37,7 +37,7 @@ A flag for selecting the model to train on. Different flags also have an impact 
 Options:
 - `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
 ![Picture of Network structure](./img/dense.png)
-- `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` datapoints. Structure is as follows:
+- `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` (25 in this case) datapoints. Structure is as follows:
 ![Picture of LSTM Network structur](./img/lstm.png)
 
 ### `--loss`
@@ -47,6 +47,12 @@ Options:
 - `mse` - The Mean Squared Error, as used in many state of the art networks. [Deviation from default implementation](#embedding-in-euclidian-space-mse)
 - `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
 
+
+### `--from-pretrained`
+Optional flag. When set loads model and loss specified in the earlier flags. The model will not be trained and the training checkpoints will be loaded to be used in loss surface calculation later. Especially useful on low-end systems where training needs a long time.
+
+### `--show-performance`
+Optional flag. When set shows a nice visualisation of the model perfomance after training. Will look similar to the pictures in [#Problems](#problems)
 
 # Novelty in our Demo
 The visualisation of the loss surface is done in a way that is not described in common literature. We refined already existing, but hard to read ones.
@@ -181,6 +187,4 @@ Though sometimes we encounter the loss being stagnant and not capturing the data
 
 
 TODO: 
-
-- play around with hyperparams of optimiser
-- update env.yml
+- refine loss visualisation
