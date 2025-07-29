@@ -188,3 +188,5 @@ Though sometimes we encounter the loss being stagnant and not capturing the data
 
 TODO: 
 - refine loss visualisation
+- nuke --from-pretrained
+- copilot disclaimer
