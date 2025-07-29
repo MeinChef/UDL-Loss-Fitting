@@ -249,24 +249,96 @@ def normalize_weights(weights, origin):
             )
     return norm
 
+def weights_to_coordinates(
+        coords: PCACoordinates, 
+        training_path: list[tf.Tensor]
+    ) -> tf.Tensor:
+    """Project the training path onto the first two principal components
+using the pseudoinverse."""
+    components = [coords.v0_, coords.v1_]
+    comp_matrix = paramlist_to_matrix(components)
+    # the pseudoinverse
+    comp_matrix = tf.linalg.pinv(comp_matrix)
+    # the origin vector
+    w_c = parameters_to_vector(training_path[-1])
+    # center the weights on the training path and project onto components
+    coord_path = []
+    for weights in training_path:
+        tmp = comp_matrix @ tf.expand_dims(
+                (parameters_to_vector(weights) - w_c),
+                axis = -1
+            )
+        coord_path.append(tf.squeeze(tmp))
 
-# def non_euklid_transf_1d(
-#         alpha: float, 
-#         params: tf.Tensor, 
-#         param_opt: tf.Tensor
-#     ) -> tf.Tensor:
-#     return alpha * param_opt + (1 - alpha) * params
+    print(coord_path) 
+    return tf.stack(coord_path)
 
-# def non_euklid_transf_2d(
-#         alpha: float,
-#         beta: float,
-#         params_opt: tf.Tensor    
-#     ) -> tf.Tensor:
-#     """
-#     Convenience function for transforming the parameters of a network into a useable space.
-    
-#     :param alpha: Lower bound of the 
-#     """
-#     a = alpha * params_opt[:,None,None]
-#     b = beta * alpha * params_opt[:,None,None]
-#     return a + b
+
+def plot_training_path(
+        coords: PCACoordinates, 
+        training_path: list[tf.Tensor], 
+        ax: plt.Axes = None, 
+        end = None, 
+        **kwargs
+    ) -> plt.Axes:
+    path = weights_to_coordinates(coords, training_path)
+    if ax is None:
+        fig, ax = plt.subplots(**kwargs)
+    colors = range(path.shape[0])
+    end = path.shape[0] if end is None else end
+    norm = plt.Normalize(0, end)
+    ax.scatter(
+        path[:, 0], path[:, 1], s=4, c=colors, cmap="cividis", norm=norm,
+    )
+    return ax
+
+
+if __name__ == "__main__":
+    # Create some data
+    NUM_EXAMPLES = 256
+    BATCH_SIZE = 64
+    x = tf.random.normal(shape=(NUM_EXAMPLES, 1))
+    err = tf.random.normal(shape=x.shape, stddev=0.25)
+    y = x ** 2 + err
+    y = tf.squeeze(y)
+    ds = (tf.data.Dataset
+        .from_tensor_slices((x, y))
+        .repeat()
+        .shuffle(1000)
+        .batch(BATCH_SIZE))
+
+    # Fit a fully-connected network (ie, a multi-layer perceptron)
+    model = keras.Sequential([
+        keras.layers.Dense(64, activation='relu', input_shape = [1]),
+        keras.layers.Dense(64, activation='relu'),
+        keras.layers.Dense(64, activation='relu'),
+        keras.layers.Dense(1)
+    ])
+    model.compile(
+        optimizer="adam", loss="mse",
+    )
+
+    training_path = [model.get_weights()]
+    # Callback to collect weights as the model trains
+    collect_weights = keras.callbacks.LambdaCallback(
+        on_epoch_end=(
+            lambda batch, logs: training_path.append(model.get_weights())
+        )
+    )
+
+    history = model.fit(
+        ds,
+        steps_per_epoch=1,
+        epochs=40,
+        callbacks=[collect_weights],
+        verbose=0,
+    )
+
+    pcoords = PCACoordinates(training_path)
+    loss_surface = LossSurface(model, x, y)
+    loss_surface.compile(points=30, coords=pcoords, range=0.4)
+    ax = loss_surface.plot(dpi=150)
+    plot_training_path(pcoords, training_path, ax)
+
+    plt.show()
+    breakpoint()

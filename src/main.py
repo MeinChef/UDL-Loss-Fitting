@@ -1,7 +1,7 @@
 from data import DataLoader, load_config
 from model import get_dense_model, get_lstm_model
 from loss import VonMises, CustomMSE
-from vis_loss import PCACoordinates, LossSurface
+from vis_loss import PCACoordinates, LossSurface, plot_training_path
 from vis_data import vis_test_gt
 
 from imports import os
@@ -34,11 +34,11 @@ def parse_args() -> argparse.Namespace:
         "\nDefault: mse"
     )
 
-    parser.add_argument(
-        "--from-pretrained",
-        action = "store_true",
-        help = "Optional argument. If set loads model weights from a pretrained checkpoint and skips training."
-    )
+    # parser.add_argument(
+    #     "--from-pretrained",
+    #     action = "store_true",
+    #     help = "Optional argument. If set loads model weights from a pretrained checkpoint and skips training."
+    # )
 
     parser.add_argument(
         "--show-performance",
@@ -59,31 +59,31 @@ def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]
     else:
         raise ValueError(f"Unknown loss function: {args.loss}")
 
-    if args.from_pretrained:
-        model = keras.saving.load_model(
-            os.path.join(
-                cfg["data_path"], 
-                f"{args.model}_{args.loss}.keras"
-            ),
-            compile = False
+    # if args.from_pretrained:
+    #     model = keras.saving.load_model(
+    #         os.path.join(
+    #             cfg["data_path"], 
+    #             f"{args.model}_{args.loss}.keras"
+    #         ),
+    #         compile = False
+    #     )
+    #     cfg["train"] = False
+
+    # else:
+    if args.model.lower() == "dense":
+        model = get_dense_model(
+            num_out = cfg["out"]
         )
-        cfg["train"] = False
+
+    elif args.model.lower() == "lstm":
+        model = get_lstm_model(
+            seq_len = cfg["seq_len"],
+            num_out = cfg["out"]
+        )
 
     else:
-        if args.model.lower() == "dense":
-            model = get_dense_model(
-                num_out = cfg["out"]
-            )
-
-        elif args.model.lower() == "lstm":
-            model = get_lstm_model(
-                seq_len = cfg["seq_len"],
-                num_out = cfg["out"]
-            )
-
-        else:
-            raise ValueError(f"Unknown model type: {args.model}")
-        cfg["train"] = True
+        raise ValueError(f"Unknown model type: {args.model}")
+    # cfg["train"] = True
 
     cfg["model"] = args.model.lower()
 
@@ -113,36 +113,35 @@ if __name__ == "__main__":
     print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
     model.summary()
 
-    breakpoint()
-    if cfg["train"]:
-        # preparation for recording the training and visualising the loss surface
-        # initial state
-        training_path = [model.weights]
-        collect_weights = keras.callbacks.LambdaCallback(
-            on_epoch_end = (
-                lambda batch, logs: training_path.append(
-                        model.weights
-                    )
-            )
+    # if cfg["train"]:
+    # preparation for recording the training and visualising the loss surface
+    # initial state
+    training_path = [model.weights]
+    collect_weights = keras.callbacks.LambdaCallback(
+        on_epoch_end = (
+            lambda batch, logs: training_path.append(
+                    model.weights
+                )
         )
+    )
 
 
-        # fit the model
-        history = model.fit(
-            train, 
-            epochs = cfg["epochs"],
-            callbacks = collect_weights,
-            verbose = 1
-        )
+    # fit the model
+    history = model.fit(
+        train, 
+        epochs = cfg["epochs"],
+        callbacks = collect_weights,
+        verbose = 1
+    )
 
-        model.evaluate(test)
+    model.evaluate(test)
 
-        if cfg["visualise_test"]:
-            figure = vis_test_gt(model, test)
-            figure.show()
+    if cfg["visualise_test"]:
+        figure = vis_test_gt(model, test)
+        figure.show()
 
-    else:
-        raise NotImplementedError()
+    # else:
+    #     raise NotImplementedError()
 
     # create the loss surface
     loss_surface = LossSurface(
@@ -155,10 +154,11 @@ if __name__ == "__main__":
     loss_surface.compile(
         points = 30,
         coords = coords,
-        range = 5 
+        range = .001
     )
 
     # and plot it
     ax = loss_surface.plot(dpi = 300)
+    ax = plot_training_path(coords, training_path, ax)
     plt.show()
     breakpoint()
