@@ -81,6 +81,7 @@ class DataLoader(object):
         train = train.batch(self.cfg["batch"]).prefetch(tf.data.AUTOTUNE)
         test  =  test.batch(self.cfg["batch"]).prefetch(tf.data.AUTOTUNE)
 
+        self.loaded = True
         return train, test
 
     def dense_data_(
@@ -162,7 +163,9 @@ class DataLoader(object):
             self
         ) -> tuple[np.ndarray, np.ndarray]:
         
-        if not self.data or not self.target:
+        # check if exists dosent' work
+
+        if not self.loaded:
             _ = self.load_data()
         
         return self.data, self.target
