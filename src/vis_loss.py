@@ -1,10 +1,12 @@
 from imports import tensorflow as tf
 from imports import keras
 from imports import numpy as np
+from imports import skd
+from scipy.interpolate import RegularGridInterpolator
 from imports import plt
 from imports import colors
-from imports import skd
-
+from imports import plt3d
+from imports import plticker
 
 # paper for visualising loss surfaces
 # https://doi.org/10.48550/arXiv.1712.09913
@@ -15,6 +17,34 @@ from imports import skd
 
 
 # TODO: annotate class
+class PCACoordinates(object):
+    def __init__(
+            self, 
+            training_path: list[tf.Tensor]
+        ) -> None:
+        origin = training_path[-1]
+        self.pca_, self.components = get_path_components(training_path)
+        self.set_origin(origin)
+
+    def __call__(
+            self, 
+            a: float, 
+            b: float
+        ) -> tf.Tensor:
+        return [
+            a * w0 + b * w1 + wc
+            for w0, w1, wc in zip(self.v0_, self.v1_, self.origin_)
+        ]
+
+    def set_origin(self,
+            origin: list[tf.Tensor], 
+            renorm: bool = True
+        ) -> None:
+        self.origin_ = origin
+        if renorm:
+            self.v0_ = normalize_weights(self.components[0], origin)
+            self.v1_ = normalize_weights(self.components[1], origin)
+
 class LossSurface(object):
     def __init__(
             self, 
@@ -49,7 +79,24 @@ class LossSurface(object):
         self.b_grid_ = b_grid
         self.loss_grid_ = loss_grid
 
-    def plot(
+    def plot_surfc_and_loss(
+        self,
+        coords: PCACoordinates,
+        training_path: list[tf.Tensor | np.ndarray],
+
+    ):
+        raise NotImplementedError()
+        path = weights_to_coordinates(coords, training_path)
+        # use these to somehow calculate the loss
+        # probably sth like
+        # for i, pt in enumerate(path):
+        #     self.model_.set_weights(coords(*pt))
+        #     z = self.model_.test_on_batch(
+        #         self.inputs_, self.outputs_, return_dict=True
+        #     )["loss"]
+        # scatter(a_grid, b_grid, z)
+
+    def plot_contour(
             self,
             levels: int = 20, 
             ax: plt.Axes = None, 
@@ -65,10 +112,17 @@ class LossSurface(object):
         # values, while the minimum becomes 0. Adding a small value (0.001) just shifts the whole thing 
         # to >0 (important when applying log)
         zs = zs - zs.min() + 0.001
+        
         if ax is None:
-            _, ax = plt.subplots(**kwargs)
-            ax.set_title("The Loss Surface")
+            fig, ax = plt.subplots(
+                nrows = 1,
+                ncols = 1,
+                # subplot_kw = {'projection': '3d'},
+                **kwargs
+            )
             ax.set_aspect("equal")
+            ax.set_title("The Loss Surface")
+        
         # Set Levels
         min_loss = zs.min()
         max_loss = zs.max()
@@ -90,35 +144,212 @@ class LossSurface(object):
             norm = colors.LogNorm(vmin=min_loss, vmax=max_loss),
         )
         ax.clabel(CS, inline=True, fontsize=8, fmt="%1.2f")
+
         return ax
 
-class PCACoordinates(object):
-    def __init__(
-            self, 
-            training_path: list[tf.Tensor]
-        ) -> None:
-        origin = training_path[-1]
-        self.pca_, self.components = get_path_components(training_path)
-        self.set_origin(origin)
+    def plot_surface(
+        self,
+        levels: int = 20, 
+        ax: plt.Axes = None, 
+        show_contours = False, 
+        **kwargs
+    ) -> plt.Axes:
+        
+        xs = self.a_grid_
+        ys = self.b_grid_
+        zs = self.loss_grid_
+        zs = zs.T
 
-    def __call__(
-            self, 
-            a: float, 
-            b: float
-        ) -> tf.Tensor:
-        return [
-            a * w0 + b * w1 + wc
-            for w0, w1, wc in zip(self.v0_, self.v1_, self.origin_)
-        ]
+        # since especially with the von Mises loss, the values of this array might be negative
+        # substracting the minimum value from this array preserves the relationship between the
+        # values, while the minimum becomes 0. Adding a small value (0.001) just shifts the whole thing 
+        # to >0 (important when applying log)
+        # zs = zs - zs.min() + 0.001
 
-    def set_origin(self,
-            origin: list[tf.Tensor], 
-            renorm: bool = True
-        ) -> None:
-        self.origin_ = origin
-        if renorm:
-            self.v0_ = normalize_weights(self.components[0], origin)
-            self.v1_ = normalize_weights(self.components[1], origin)
+        min_loss = zs.min()
+        max_loss = zs.max()
+
+        if ax is None:
+            fig2, ax2 = plt.subplots(
+                nrows = 1,
+                ncols = 1,
+                subplot_kw = {'projection': '3d'},
+                **kwargs
+            )
+            ax2.set_title("The loss surface, but in 3D")
+        
+        X, Y = np.meshgrid(xs, ys)
+        ax2.plot_surface(
+            X,
+            Y,
+            np.clip(zs, None, 5),
+            cmap = "magma",
+            alpha = 0.75,
+            linewidth = 0,
+            antialiased = False,
+            norm = colors.LogNorm(vmin = min_loss, vmax = max_loss),
+        )
+
+        # Optionally plot contour lines
+        if show_contours:
+            CS = ax2.contour(
+                xs, 
+                ys, 
+                zs,
+                levels = levels,
+                c = "black",
+                linestyles = "dotted",
+                offset = 0.0,
+                # norm = colors.LogNorm(vmin=zs.min(), vmax=zs.max()),
+            )
+            ax2.clabel(CS, inline=True, fontsize=8, fmt="%1.2f")
+
+        ax2.set_xlabel("PC1")
+        ax2.set_ylabel("PC2")
+        ax2.set_zlabel("Loss")
+        return ax2
+    
+    def plot_surface_and_path(
+        self,
+        coords: PCACoordinates,
+        training_path: list[tf.Tensor],
+        ax: plt.Axes = None,
+        show_contours: bool = True,
+        **kwargs
+    ):
+        path = weights_to_coordinates(coords, training_path).numpy()
+        xs = self.a_grid_.numpy()
+        ys = self.b_grid_.numpy()
+        zs = self.loss_grid_
+
+        # Transpose zs so that axes match meshgrid and interpolation
+        zs = zs
+
+        # Use the same zs for both interpolation and plotting
+        interpolator = RegularGridInterpolator((xs, ys), zs)
+        path_loss = interpolator(path)
+        breakpoint()
+
+
+        if ax is None:
+            fig, ax = plt.subplots(subplot_kw={"projection": "3d"}, **kwargs)
+
+        X, Y = np.meshgrid(xs, ys)
+        surf = ax.plot_surface(
+            X, Y, zs,
+            cmap="magma",
+            alpha=0.75,
+            linewidth=0,
+            antialiased=False,
+            norm=colors.LogNorm(vmin=zs.min(), vmax=zs.max()),
+        )
+
+        if show_contours:
+            levels = np.exp(np.linspace(np.log(zs.min()), np.log(zs.max()), 20))
+            ax.contour(
+                X, Y, zs,
+                levels=levels,
+                cmap="magma",
+                linestyles="solid",
+                offset=0.0,
+                norm=colors.LogNorm(vmin=zs.min(), vmax=zs.max()),
+            )
+
+        # Plot the training path exactly on the surface
+        # ax.plot(path[:, 0], path[:, 1], path_loss, color="black", linewidth=2, label="Training Path")
+        ax.scatter(path[:, 0], path[:, 1], path_loss, c=range(len(path_loss)), cmap="cividis", s=15)
+
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_zlabel("Loss")
+        # ax.legend()
+        return ax
+
+def plot_training_path(
+        coords: PCACoordinates, 
+        training_path: list[tf.Tensor], 
+        ax: plt.Axes = None, 
+        end = None, 
+        **kwargs
+    ) -> plt.Axes:
+    path = weights_to_coordinates(coords, training_path)
+    if ax is None:
+        fig, ax = plt.subplots(**kwargs)
+    colors = range(path.shape[0])
+    end = path.shape[0] if end is None else end
+    norm = plt.Normalize(0, end)
+    ax.scatter(
+        path[:, 0], path[:, 1], s=4, c=colors, cmap="cividis", norm=norm,
+    )
+    return ax
+
+def plot_training_path_3d(
+        coords: PCACoordinates, 
+        training_path: list[tf.Tensor], 
+        loss: list[float],
+        ax = None, 
+        end = None, 
+        **kwargs
+    ):
+    path = weights_to_coordinates(coords, training_path)
+    zs = loss  # Use step index or actual loss if available
+    if ax is None:
+        fig, ax = plt.subplots(
+            subplot_kw = {"projection": "3d"},
+            **kwargs
+        )
+    end = path.shape[0] if end is None else end
+    norm = plt.Normalize(0, end)
+    ax.scatter(
+        path[:, 0], 
+        path[:, 1], 
+        zs, 
+        s = 4,
+        c = range(path.shape[0]),
+        cmap = "cividis",
+        norm = norm
+    )
+    return ax
+
+def plot_training_path_on_surface(
+        loss_surface: LossSurface,
+        coords: PCACoordinates,
+        training_path: list[tf.Tensor],
+        ax: plt.Axes = None,
+        **kwargs
+    ):
+    """
+    Plots the training path as a 3D line on the loss surface, with optional height lines.
+    """
+    # Project training path to PCA coordinates
+    path = weights_to_coordinates(coords, training_path).numpy()
+    xs = loss_surface.a_grid_.numpy()
+    ys = loss_surface.b_grid_.numpy()
+    zs = loss_surface.loss_grid_
+
+    # Transpose zs so that axes match meshgrid and interpolation
+    zs = zs.T
+
+    # Interpolate loss values at training path coordinates
+    interpolator = RegularGridInterpolator((xs, ys), zs)
+    path_loss = interpolator(path)
+
+    # Create 3D axis if needed
+    if ax is None:
+        fig, ax = plt.subplots(
+            subplot_kw = {"projection": "3d"},
+            **kwargs
+        )
+    ax.scatter(
+        path[:, 0], 
+        path[:, 1], 
+        path_loss, 
+        c = range(len(path_loss)), 
+        cmap = "cividis", 
+        s = 15
+    )
+
+    return ax
 
 
 def parameters_to_vector(
@@ -256,20 +487,3 @@ using the pseudoinverse."""
     return tf.stack(coord_path)
 
 
-def plot_training_path(
-        coords: PCACoordinates, 
-        training_path: list[tf.Tensor], 
-        ax: plt.Axes = None, 
-        end = None, 
-        **kwargs
-    ) -> plt.Axes:
-    path = weights_to_coordinates(coords, training_path)
-    if ax is None:
-        fig, ax = plt.subplots(**kwargs)
-    colors = range(path.shape[0])
-    end = path.shape[0] if end is None else end
-    norm = plt.Normalize(0, end)
-    ax.scatter(
-        path[:, 0], path[:, 1], s=4, c=colors, cmap="cividis", norm=norm,
-    )
-    return ax
