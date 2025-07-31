@@ -8,21 +8,21 @@ def get_model(
 
     if cfg["loss"] == "vm":
         loss = VonMises()
-        out = 1
+        cfg["out"] = 1
     elif cfg["loss"] == "mse":
         loss = CustomMSE(axis = -1)
-        out = 2
+        cfg["out"] = 2
     else:
         raise ValueError(f"Unknown loss function: {cfg['loss']}")
 
     if cfg["model"] == "dense":
         model = get_dense_model(
-            num_out = out
+            num_out = cfg["out"]
         )
     elif cfg["model"] == "lstm":
         model = get_lstm_model(
             seq_len = cfg["seq_len"],
-            num_out = out
+            num_out = cfg["out"]
         )
     else: 
         raise ValueError(f"Unknown model type: {cfg['model']}")
