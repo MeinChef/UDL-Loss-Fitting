@@ -59,6 +59,12 @@ class LossSurface(object):
         xs = self.a_grid_
         ys = self.b_grid_
         zs = self.loss_grid_
+
+        # since especially with the von Mises loss, the values of this array might be negative
+        # substracting the minimum value from this array preserves the relationship between the
+        # values, while the minimum becomes 0. Adding a small value (0.001) just shifts the whole thing 
+        # to >0 (important when applying log)
+        zs = zs - zs.min() + 0.001
         if ax is None:
             _, ax = plt.subplots(**kwargs)
             ax.set_title("The Loss Surface")
@@ -81,7 +87,7 @@ class LossSurface(object):
             levels = levels,
             cmap = "magma",
             linewidths = 0.75,
-            norm = colors.LogNorm(vmin=min_loss, vmax=max_loss * 2.0),
+            norm = colors.LogNorm(vmin=min_loss, vmax=max_loss),
         )
         ax.clabel(CS, inline=True, fontsize=8, fmt="%1.2f")
         return ax
@@ -116,7 +122,7 @@ class PCACoordinates(object):
 
 
 def parameters_to_vector(
-        params: keras.Model.weights
+        params: list[np.ndarray | tf.Tensor]
     ) -> tf.Tensor:
     """
     Convience function for turning model into a 1D-Tensor containing all variables.
@@ -125,29 +131,6 @@ def parameters_to_vector(
         [tf.reshape(var, [-1]) for var in params],
         axis = 0
         )
-
-
-def vector_to_parameters(
-        vector: tf.Tensor, 
-        model: keras.Model
-    ) -> None:
-    """
-    Convenience function for assigning a flat vector to a model's trainable variables.
-    """
-    
-    pointer = 0
-    # iterate over variables
-    for var in model.get_weights():
-        # get the no of numbers that make this variable
-        shape = var.shape
-        num_params = tf.reduce_prod(shape)
-        # take the amount from the vector
-        var_vector = vector[pointer : pointer + num_params]
-        reshaped = tf.reshape(var_vector, shape)
-        var.assign(reshaped)
-        # increase the pointer to not access the variables again
-        pointer += num_params
-
 
 def paramlist_to_matrix(
         param_list:list    
@@ -270,7 +253,6 @@ using the pseudoinverse."""
             )
         coord_path.append(tf.squeeze(tmp))
 
-    print(coord_path) 
     return tf.stack(coord_path)
 
 
@@ -291,54 +273,3 @@ def plot_training_path(
         path[:, 0], path[:, 1], s=4, c=colors, cmap="cividis", norm=norm,
     )
     return ax
-
-
-if __name__ == "__main__":
-    # Create some data
-    NUM_EXAMPLES = 256
-    BATCH_SIZE = 64
-    x = tf.random.normal(shape=(NUM_EXAMPLES, 1))
-    err = tf.random.normal(shape=x.shape, stddev=0.25)
-    y = x ** 2 + err
-    y = tf.squeeze(y)
-    ds = (tf.data.Dataset
-        .from_tensor_slices((x, y))
-        .repeat()
-        .shuffle(1000)
-        .batch(BATCH_SIZE))
-
-    # Fit a fully-connected network (ie, a multi-layer perceptron)
-    model = keras.Sequential([
-        keras.layers.Dense(64, activation='relu', input_shape = [1]),
-        keras.layers.Dense(64, activation='relu'),
-        keras.layers.Dense(64, activation='relu'),
-        keras.layers.Dense(1)
-    ])
-    model.compile(
-        optimizer="adam", loss="mse",
-    )
-
-    training_path = [model.get_weights()]
-    # Callback to collect weights as the model trains
-    collect_weights = keras.callbacks.LambdaCallback(
-        on_epoch_end=(
-            lambda batch, logs: training_path.append(model.get_weights())
-        )
-    )
-
-    history = model.fit(
-        ds,
-        steps_per_epoch=1,
-        epochs=40,
-        callbacks=[collect_weights],
-        verbose=0,
-    )
-
-    pcoords = PCACoordinates(training_path)
-    loss_surface = LossSurface(model, x, y)
-    loss_surface.compile(points=30, coords=pcoords, range=0.4)
-    ax = loss_surface.plot(dpi=150)
-    plot_training_path(pcoords, training_path, ax)
-
-    plt.show()
-    breakpoint()
