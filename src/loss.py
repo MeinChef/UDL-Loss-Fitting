@@ -38,7 +38,7 @@ class VonMises(keras.losses.Loss):
 
         # 1 - ... because cosine is already between -1 and 1,
         # thus this guarantees positivity.
-        return 1 - self.kappa * tf.math.cos(y_true - y_pred)
+        return tf.reduce_mean( - self.kappa * tf.math.cos(y_true - y_pred))
     
 class CustomMSE(keras.losses.Loss):
     def __init__(
@@ -56,10 +56,7 @@ class CustomMSE(keras.losses.Loss):
     
     @tf.function
     def call(self, y_true, y_pred):
-        return tf.math.reduce_sum(
-            tf.math.reduce_mean(
+        return tf.math.reduce_mean(
                 tf.math.square(y_true - y_pred),
                 axis = self.axis
-            ),
-            axis = -1
-        )
+            )
