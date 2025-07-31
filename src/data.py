@@ -51,6 +51,8 @@ class DataLoader(object):
         df = df[~np.ma.fix_invalid(df).mask.any(axis=1)]
         # since the distributions are defined from -pi to pi, we need the direction in rad
         df[:,2] = np.deg2rad(df[:,2])
+        # normalize the first column, since the values are in range 980-1200
+        df[:,0] = (df[:,0] - np.mean(df[:,0])) / np.std(df[:,0])
         
         # different pipelines for data
         if self.cfg["model"] == "dense":
