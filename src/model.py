@@ -1,4 +1,34 @@
+from loss import VonMises, CustomMSE
 from imports import keras
+
+
+def get_model(
+        cfg: dict
+    ) -> keras.Model:
+
+    if cfg["loss"] == "vm":
+        loss = VonMises()
+        out = 1
+    elif cfg["loss"] == "mse":
+        loss = CustomMSE(axis = -1)
+        out = 2
+    else:
+        raise ValueError(f"Unknown loss function: {cfg['loss']}")
+
+    if cfg["model"] == "dense":
+        model = get_dense_model(
+            num_out = out
+        )
+    elif cfg["model"] == "lstm":
+        model = get_lstm_model(
+            seq_len = cfg["seq_len"],
+            num_out = out
+        )
+    else: 
+        raise ValueError(f"Unknown model type: {cfg['model']}")
+    
+    model.compile(optimizer = 'adam', loss = loss)
+    return model
 
 def get_dense_model(
         num_out: int = 1
@@ -13,10 +43,9 @@ def get_dense_model(
 
 def get_lstm_model(
         seq_len:int = 5, 
-        input_dim:int = 3,
         num_out: int = 2
     ) -> keras.Model:
-    inputs = keras.layers.Input(shape = (seq_len, input_dim))
+    inputs = keras.layers.Input(shape = (seq_len, 3))
     lstm_out = keras.layers.Bidirectional(keras.layers.LSTM(64, return_sequences = True))(inputs)
     context_vector = keras.layers.Flatten()(lstm_out)
 
