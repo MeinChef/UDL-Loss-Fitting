@@ -255,11 +255,12 @@ z_loss_grid = interpolator(path)
 
 # Problems
 
-While the models usually learn really well, sometimes we encountered the loss being stagnant and not capturing the data well. As this is not always the case, but only on some relatively rare occasions, we think this has to do with the initialisation. But just to be sure you are aware of this, this is how the loss and the predictions might look like:
+While the models usually learn really well, sometimes we encountered the loss being stagnant and not capturing the data well. As this is not always the case, but only on some relatively rare occasions, we think this has to do with the initialisation. But just to be sure you are aware of this, this is how the loss and the predictions might look like.
 
 ![Loss of the LSTM model with the sine/cosine embedding](./img/loss-mse-bad.png)
+The loss values have been recorded during training and can be accessed as csvs in the `logs` directory. Graphic has been obtained by executing `logs/vis_logs.py`
 
-The predictions have been drawn from sample `1-n`, since they are only coded in angles, and this makes for the best visualisation.
+The predictions have been drawn from sample `1-n`, since they are only coded in angles, and this makes for the best visualisation. (Obtained by `--show-performance`)
 
 ![Distribution of Datapoints in the Testset](./img/lstm-bad-init.png)
 
