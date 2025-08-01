@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
         choices = ["dense", "lstm"], 
         default = "lstm",
         help = "Optional argument. Choose the model type to run: 'dense', 'lstm'. " +
-                "Visualisations for the different models can be found in img/.\nDefault: lstm"
+                "Visualisations for the different model architectures can be found in img/.\nDefault: lstm"
     )
 
     parser.add_argument(
@@ -72,8 +72,6 @@ if __name__ == "__main__":
     # preparation for recording the training and visualising the loss surface
     # capturing the initial state
     training_path = [model.get_weights()]
-    loss_path = [model.evaluate(test, verbose = 0)]
-
     collect_weights = keras.callbacks.LambdaCallback(
         on_epoch_end = (
             lambda batch, logs: training_path.append(
@@ -93,7 +91,6 @@ if __name__ == "__main__":
     )
 
     # append the recording 
-    loss_path.extend(history.history["loss"])
     print("Done!")
 
     if cfg["visualise_test"]:

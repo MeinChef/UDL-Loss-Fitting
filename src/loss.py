@@ -11,17 +11,17 @@ class VonMises(keras.losses.Loss):
         ):
 
         """
-        Custom loss for von Mises distribution, predicting $\mu$.
-        The intuition behind kappa is that bigger values penalize angle deviations more.
-        
-        :param kappa: Concentration parameter (must be > 0)
-        :type kappa: float
+            Custom loss for von Mises distribution, predicting $\mu$.
+            The intuition behind kappa is that bigger values penalize angle deviations more.
+            
+            :param kappa: Concentration parameter (must be > 0)
+            :type kappa: float
 
-        :param reduction: Type of reduction to apply to the loss. Available: none, sum, sum_over_batch_size. Default sum_over_batch_size
-        :type reduction: String
+            :param reduction: Type of reduction to apply to the loss. Available: none, sum, sum_over_batch_size. Default sum_over_batch_size
+            :type reduction: String
 
-        :param name: Name of the loss function
-        :type name: str
+            :param name: Name of the loss function
+            :type name: str
         """
 
         super().__init__(

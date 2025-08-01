@@ -8,13 +8,14 @@ Repository for the SummerSemester 2025 Course "Understanding Deep Learning", at 
 UDL-Loss-Fitting/
 ├── cfg/            # Configuration files
 │   └── cfg.yml     
-├── data/           # Raw and processed datasets
+├── data/           # Dataset files
 ├── img/            # Images and visualizations
 ├── logs/           # Training and evaluation logs
 ├── src/            # Source code
-│   ├── main.py     # Entry point for training/testing
+│   ├── main.py     # Entry point for training & plotting
 │   ├── loss.py     # Custom loss functions
 │   ├── model.py    # Model architectures
+│   ├── vis_loss.py # Loss surface visualisation
 │   └── ...         # Other modules and utilities
 ├── env_cpu.yml     # Conda environment file (CPU)
 ├── env_cuda.yml    # Conda environment file (CUDA)
@@ -27,7 +28,7 @@ UDL-Loss-Fitting/
 You can create the environment needed for this project using the `env_[].yml` file located in the root of the repository.
 We provided two environment files, one containing the neccessary cuda libraries for training on a GPU, and one without. Replace the `[placeholder]` in the command with either `cuda` or `cpu`
 ```bash
-$ conda env create -f env_[placeholder].yml python=3.11
+$ conda env create -f env_[placeholder].yml
 ```
 After creating the environment, you can activate it using the following command:
 ```bash
@@ -36,12 +37,12 @@ $ conda activate udl-loss
 ## Execute Program
 Once activated, navigate to the folder of the repository. Then you can execute the program using
 ```bash
-$ python src/main.py [FLAGS]
+(udl-loss) $ python src/main.py [FLAGS]
 ```
 
 ## Flags
 ### `--model`
-A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be defined in `cfg/cfg.yml` with the key "seq_len".
+A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be defined in `cfg/cfg.yml` with the key `seq_len`.
 
 Options:
 - `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
@@ -51,17 +52,19 @@ Options:
 
 **Runtime**
 When running the models on my local hardware (GPU with Cuda compute capability of 8.6), the runtimes were as follows (roughly)
-- dense, mse: 0.21 Epoch/s (4.63s/Epoch)
-- dense, vm: 14.3 Epoch/s
-- lstm (seq_len = 25), mse: 7.69 Epoch/s
-- lstm (seq_len = 25), vm: 7.59 Epoch/s
+| Model                | Loss | Epochs/sec |
+|----------------------|:----:|:----------:|
+| dense                | mse  | 0.21       |
+| dense                | vm   | 14.3       |
+| lstm (seq_len = 25)  | mse  | 7.69       |
+| lstm (seq_len = 25)  | vm   | 7.59       |
 
 ### `--loss`
 This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
 
 Options:
-- `mse` - The Mean Squared Error, as used in many state of the art networks. [Deviation from default implementation](#embedding-in-euclidian-space-mse)
-- `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
+- `mse` - The Mean Squared Error, as used in many state of the art networks. [Slight deviation from default implementation here.](#embedding-in-euclidian-space-mse)
+- `vM` - A loss based on the von Mises distribution. [Explanation and derivation here.](#von-mises)
 
 ### `--show-performance`
 Optional flag. When set shows a nice visualisation of the model perfomance after training. Will look similar to the pictures in [#Problems](#problems)
@@ -71,20 +74,21 @@ The visualisation of the loss surface is done in a way that is not described in 
 
 # Data
 
-We wanted to use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we use was obtained by selecting the station "Osnabrück" - not the station "Osnabrück (VS)".
+We wanted to use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we used was obtained by selecting the station "Osnabrück".
 
-Then selecting the components  
+Selected Components:  
 - "Luftdruck" (barometric pressure), 
 - "Windrichtung" (wind direction), and 
 - "Windgeschw." (wind speed).
 
-We selected "Stundenwerte" (hourly measurements) in the timeframe 12.02.2025 through 12.05.2025. The data was downloaded on 13.05.2025 at 00:01.
+We selected hourly measurements ("Stundenwerte") in the timeframe 12.02.2025 through 12.05.2025. The data was downloaded on 13.05.2025 at 00:01.
 
 # Explanation of Losses
 
 ## von Mises
 
-Since our model tries to predict the direction of wind, which is given on a circle, we are using the von Mises-Fischer Distribution. 
+Since our model tries to predict the direction of wind, which is given on a circle, we are using the von Mises Distribution as our base, and construct the negative log-likelihood from it.
+
 The von Mises Distribution is defined from $-\pi$ to $\pi$ in two dimensions (circle) as follows:
 
 ```math
@@ -93,7 +97,8 @@ The von Mises Distribution is defined from $-\pi$ to $\pi$ in two dimensions (ci
 \end{align}
 ```
 
-Since we want to predict the angle of the wind, we should focus on $\mu$. Replacing $\mu$ with our model results in:
+Since we want to predict the angle of the wind, we should focus on the mean parameter $\mu$. $\kappa$ dictates the spread from the mean. 
+Replacing $\mu$ with our model results in:
 
 ```math
 \begin{align}
@@ -189,20 +194,21 @@ Equipped with all the losses, we can now train our network and have a look at fa
 
 The loss surface of a neural network is a graph, depending on all of the networks parameters (weights) and the loss associated with the state of the network. 
 Since this surface depends on all parameters of a network, it lives in a space of `#parameters` dimensions. 
-In our case it is `137 314` parameters for the `LSTM` model, and `2 402` parameters for the `Dense` model.
+In our case it is 137 314 dimensions for the `LSTM` model, and 2 402 dimensions for the `Dense` model.
 
 This in itself is the big hurdle to overcome in order to be able to plot loss surfaces, since in visualisations we are restricted to at most 3 dimensions.
-Our approach was to project the state of the model after training into two dimensions, and then calculate a grid from there to get to a landscape (here of our LSTM model with MSE):
+Our approach was to project the state of the model after training into two dimensions, and then calculate a grid from there to get to a landscape (here of the LSTM model with MSE):
 
 ![Loss Landscape of the LSTM model](./img/loss_surfc_lstm_mse-3d.png)
 
 
 We took inspiration from the paper [Visualizing the Loss Landscape of Neural Nets](https://doi.org/10.48550/arXiv.1712.09913) [1], and tried to adapt their simple approach to the plotting.
+[This post](https://mathformachines.com/posts/visualizing-the-loss-landscape/) helped understanding the paper even better.
 
 
 ## The Optimisation Path on the Loss Surface
 
-To show the part of the loss surface, on which the model performs the optimisation, we did a PC-Analysis on these. 
+To show the part of the loss surface, on which the model performs the optimisation, we did a PC-Analysis on the weights of the model during training. 
 This gave us roughly the section that is relevant, and the anchor for which we calculated the grid. [src/vis_loss.py](./src/vis_loss.py#L267)
 
 ```python
@@ -217,7 +223,7 @@ pca = skd.PCA(
 components = pca.fit_transform(weight_matrix)
 ```
 
-And scattering that on the surface looks like this (this time the dense model, MSE):
+And scattering that on the surface looks like this (this time the Dense model with MSE):
 
 ![Loss Landscape of the Dense Model with the path traced](./img/loss_surfc_dense_mse-3d.png)
 

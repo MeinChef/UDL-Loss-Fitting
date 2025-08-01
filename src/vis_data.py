@@ -8,18 +8,18 @@ def visualise_data(
         title:str = ""
 ):
     """
-    Visualise the data given in a dataset.
+        Visualise the data given in a dataset.
 
-    :param data: A Tuple of Datasets, containing the data to be visualised.
-    :type data: tuple[tf.data.Dataset, tf.data.Dataset]
-    :param type_visualisatin: Type of visualisation to be used. Can be "dense" or "lstm". Default is "dense". 
-                    "Dense" refers to a plot aimed at strictly feed-forward networks, while "lstm" tries to capture the timing-variable nature of the data.
-    :type type_visualisatin: str
-    :param title: Title of the plot.
-    :type title: str
+        :param data: A Tuple of Datasets, containing the data to be visualised.
+        :type data: tuple[tf.data.Dataset, tf.data.Dataset]
+        :param type_visualisatin: Type of visualisation to be used. Can be "dense" or "lstm". Default is "dense". 
+                        "Dense" refers to a plot aimed at strictly feed-forward networks, while "lstm" tries to capture the timing-variable nature of the data.
+        :type type_visualisatin: str
+        :param title: Title of the plot.
+        :type title: str
 
-    :return: A matplotlib figure object.
-    :rtype: plt.Figure
+        :return: A matplotlib figure object.
+        :rtype: plt.Figure
     """
 
     # load csv with numpy
@@ -79,7 +79,7 @@ def visualise_data(
 
 def vis_test_gt(model, data):
     """
-    Visualise the predictions of the test against the ground truth 
+        Visualise the predictions of the test against the ground truth 
     """
 
     gt = []
