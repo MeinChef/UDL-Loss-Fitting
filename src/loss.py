@@ -28,7 +28,8 @@ class VonMises(keras.losses.Loss):
             reduction = reduction, 
             name = name
         )
-
+        if kappa <= 0:
+            raise ValueError("kappa must be greater than 0")
         self.kappa = tf.convert_to_tensor(kappa, dtype = dtype)
 
     @tf.function
@@ -36,8 +37,6 @@ class VonMises(keras.losses.Loss):
         y_true = tf.math.l2_normalize(y_true, axis = -1)
         y_pred = tf.math.l2_normalize(y_pred, axis = -1)
 
-        # 1 - ... because cosine is already between -1 and 1,
-        # thus this guarantees positivity.
         return tf.reduce_mean( - self.kappa * tf.math.cos(y_true - y_pred))
     
 class CustomMSE(keras.losses.Loss):
