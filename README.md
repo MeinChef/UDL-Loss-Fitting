@@ -45,7 +45,7 @@ Once activated, navigate to the folder of the repository. Then you can execute t
 A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be defined in `cfg/cfg.yml` with the key `seq_len`.
 
 Options:
-- `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
+- `dense` - A densely connected, strictly feed-forward model. Layers are as follows: 
 ![Picture of Network structure](./img/dense.png)
 - `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` (25 in this case) datapoints. Structure is as follows:
 ![Picture of LSTM Network structur](./img/lstm.png)
@@ -60,7 +60,7 @@ When running the models on my local hardware (GPU with Cuda compute capability o
 | lstm (seq_len = 25)  | vm   | 7.59       |
 
 ### `--loss`
-This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
+This flag selects the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
 
 Options:
 - `mse` - The Mean Squared Error, as used in many state of the art networks. [Slight deviation from default implementation here.](#embedding-in-euclidian-space-mse)
@@ -74,7 +74,7 @@ The visualisation of the loss surface is done in a way that is not described in 
 
 # Data
 
-We wanted to use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we used was obtained by selecting the station "Osnabrück".
+We use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we used was obtained by selecting the station "Osnabrück".
 
 Selected Components:  
 - "Luftdruck" (barometric pressure), 
@@ -159,7 +159,7 @@ def call(self, y_true, y_pred):
 
     return tf.reduce_sum(tf.multiply(y_true, y_pred))
 ```
-What I only realised after implementing that and trying to getting it to work, is that for having that working, a vector needs to be at least 2D. Which is not what we are predicting. We are predicting a singular value - the angle. \
+What I only realised after implementing that and trying to getting it to work, is that for having it work, a vector needs to be at least 2D. Which is not what we are predicting. We are predicting a singular value - the angle. \
 After researching on how to circumevent that problem, I found that it is a common thing to transform an [angle to a vector](https://math.stackexchange.com/questions/180874/convert-angle-radians-to-a-heading-vector) on the unit circle. \
 This directly leads to our next approach: 
 
@@ -208,7 +208,7 @@ We took inspiration from the paper [Visualizing the Loss Landscape of Neural Net
 
 ## The Optimisation Path on the Loss Surface
 
-To show the part of the loss surface, on which the model performs the optimisation, we did a PC-Analysis on the weights of the model during training. 
+To show the part of the loss surface on which the model performs the optimisation, we did a PC-Analysis on the weights of the model during training. 
 This gave us roughly the section that is relevant, and the anchor for which we calculated the grid. [src/vis_loss.py](./src/vis_loss.py#L267)
 
 ```python
@@ -261,7 +261,7 @@ z_loss_grid = interpolator(path)
 
 # Problems
 
-While the models usually learn really well, sometimes we encountered the loss being stagnant and not capturing the data well. As this is not always the case, but only on some relatively rare occasions, we think this has to do with the initialisation. But just to be sure you are aware of this, this is how the loss and the predictions might look like.
+While the models usually learn really well, sometimes we encountered the loss being stagnant and not capturing the data well. As this is not always the case, but only on some relatively rare occasions, we think this has to do with the initialisation. But just to be sure you are aware of this, this is what the loss and the predictions might look like.
 
 ![Loss of the LSTM model with the sine/cosine embedding](./img/loss-mse-bad.png)
 The loss values have been recorded during training and can be accessed as csvs in the `logs` directory. Graphic has been obtained by executing `logs/vis_logs.py`
@@ -270,7 +270,7 @@ The predictions have been drawn from sample `1-n`, since they are only coded in 
 
 ![Distribution of Datapoints in the Testset](./img/lstm-bad-init.png)
 
-Just for comparison, this is how a "good" prediction would look like:
+Just for comparison, this is what a "good" prediction would look like:
 
 ![A good prediction](./img/lstm_sincos_150ep.png)
 
