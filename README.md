@@ -42,7 +42,7 @@ The von Mises Distribution is defined from $-\pi$ to $\pi$ in two dimensions (ci
 f(x|\mu,\kappa) = \frac{\exp(\kappa\cos(x-\mu))}{2\pi I_0(\kappa)}
 ```
 
-But since we are having three dimensions (speed, direction, pressure), a variant of the von Mises distribution, the _von Mises-Fischer Distribution_ that modifies the distribution to $p$ dimensions, could also be used. 
+But since we have three dimensions (speed, direction, pressure), a variant of the von Mises distribution, the _von Mises-Fischer Distribution_ that modifies the distribution to $p$ dimensions, could also be used. 
 
 ```math
 \begin{align}
