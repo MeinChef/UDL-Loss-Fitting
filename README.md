@@ -3,21 +3,29 @@
 # UDL-Loss-Fitting
 Repository for the SummerSemester 2025 Course "Understanding Deep Learning", at [University Osnabrück](https://www.uni-osnabrueck.de/)
 
-# Data
+# Project Structure
+```
+UDL-Loss-Fitting/
+├── cfg/            # Configuration files
+│   └── cfg.yml     
+├── data/           # Raw and processed datasets
+├── img/            # Images and visualizations
+├── logs/           # Training and evaluation logs
+├── src/            # Source code
+│   ├── main.py     # Entry point for training/testing
+│   ├── loss.py     # Custom loss functions
+│   ├── model.py    # Model architectures
+│   └── ...         # Other modules and utilities
+├── env_cpu.yml     # Conda environment file (CPU)
+├── env_cuda.yml    # Conda environment file (CUDA)
+└── README.md       # Project documentation
 
-We wanted to use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we use was obtained by selecting the station "Osnabrück" - not the station "Osnabrück (VS)".
-
-Then selecting the components  
-- "Luftdruck" (barometric pressure), 
-- "Windrichtung" (wind direction), and 
-- "Windgeschw." (wind speed).
-
-We selected "Stundenwerte" (hourly measurements) in the timeframe 12.02.2025 through 12.05.2025. The data was downloaded on 13.05.2025 at 00:01.
+```
 
 # Quickstart
 ## Create environment
-You can create the environment needed for this project using the env_[].yml file.
-We provided two environment files, one containing the neccessary cuda libraries , and one without. Replace the `[placeholder]` in the command with either `cuda` or `cpu`
+You can create the environment needed for this project using the `env_[].yml` file located in the root of the repository.
+We provided two environment files, one containing the neccessary cuda libraries for training on a GPU, and one without. Replace the `[placeholder]` in the command with either `cuda` or `cpu`
 ```bash
 $ conda env create -f env_[placeholder].yml python=3.11
 ```
@@ -33,12 +41,20 @@ $ python src/main.py [FLAGS]
 
 ## Flags
 ### `--model`
-A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be define in `cfg/cfg.yml` with the key "seq_len".\
+A flag for selecting the model to train on. Different flags also have an impact on how the data is prepared, as the LSTM models (lstm, circular) predict on sequences. The sequence length should be defined in `cfg/cfg.yml` with the key "seq_len".
+
 Options:
 - `dense` - A densly connected, strictly feed-forward model. Layers are as follows: 
 ![Picture of Network structure](./img/dense.png)
 - `lstm` - An LSTM network, designed to predict the direction of the wind using the last `seq_len` (25 in this case) datapoints. Structure is as follows:
 ![Picture of LSTM Network structur](./img/lstm.png)
+
+**Runtime**
+When running the models on my local hardware (GPU with Cuda compute capability of 8.6), the runtimes were as follows (roughly)
+- dense, mse: 0.21 Epoch/s (4.63s/Epoch)
+- dense, vm: 14.3 Epoch/s
+- lstm (seq_len = 25), mse: 7.69 Epoch/s
+- lstm (seq_len = 25), vm: 7.59 Epoch/s
 
 ### `--loss`
 This flag is selecting the loss to be used during training and testing. The different losses are explained in section [Losses](#explanation-of-losses).
@@ -47,15 +63,22 @@ Options:
 - `mse` - The Mean Squared Error, as used in many state of the art networks. [Deviation from default implementation](#embedding-in-euclidian-space-mse)
 - `vM` - A loss based on the von Mises distribution. [Explanation and derivation](#von-mises)
 
-
-### `--from-pretrained`
-Optional flag. When set loads model and loss specified in the earlier flags. The model will not be trained and the training checkpoints will be loaded to be used in loss surface calculation later. Especially useful on low-end systems where training needs a long time.
-
 ### `--show-performance`
 Optional flag. When set shows a nice visualisation of the model perfomance after training. Will look similar to the pictures in [#Problems](#problems)
 
-# Novelty in our Demo
+## Novelty in our Demo
 The visualisation of the loss surface is done in a way that is not described in common literature. We refined already existing, but hard to read ones.
+
+# Data
+
+We wanted to use data collected by the [Lower Saxon Ministry for the Environment, Energy and Climate Protection](https://www.umwelt.niedersachsen.de/startseite/) (Website in German). Lower Saxony maintains a network of weather stations to measure air quality (Lufthygienisches Überwachungssystem Niedersachsen) whose most recent data can be downloaded [from their website](https://www.umwelt.niedersachsen.de/startseite/themen/luftqualitat/lufthygienische_uberwachung_niedersachsen/aktuelle_messwerte_messwertarchiv/messwertarchiv/download/). The data we use was obtained by selecting the station "Osnabrück" - not the station "Osnabrück (VS)".
+
+Then selecting the components  
+- "Luftdruck" (barometric pressure), 
+- "Windrichtung" (wind direction), and 
+- "Windgeschw." (wind speed).
+
+We selected "Stundenwerte" (hourly measurements) in the timeframe 12.02.2025 through 12.05.2025. The data was downloaded on 13.05.2025 at 00:01.
 
 # Explanation of Losses
 
@@ -97,16 +120,14 @@ Since the second term does not depend on $\mu$, it can be assumed constant and d
 \end{align}
 ```
 
-In [our code](./src/loss.py#L34) this looks like the follows:
+In [our code](./src/loss.py#L35) this looks like the follows:
 ```python
 @tf.function
 def call(self, y_true, y_pred):
     y_true = tf.math.l2_normalize(y_true, axis = -1)
     y_pred = tf.math.l2_normalize(y_pred, axis = -1)
 
-    # 1 - ... because cosine is already between -1 and 1,
-    # thus this guarantees positivity.
-    return 1 - self.kappa * tf.math.cos(y_true - y_pred)
+    return tf.reduce_mean( - self.kappa * tf.math.cos(y_true - y_pred))
 ```
 
 ## Cosine-Similarity
@@ -143,50 +164,120 @@ This directly leads to our next approach:
 The same approach is also mentioned in [this article](https://medium.com/@john_96423/the-wraparound-problem-predicting-angles-in-machine-learning-44786aa51b91)
 
 Noteable is that for the loss the two predictions get their own loss calculation respectively, which then get added.
-Per default the implementation in tensorflow for MSE is taking the mean of the -1st axis. But since our prediction is of the shape [batch_size, 2], we would be taking the mean of the sine/cosine.
-Our implementation uses the axis 0 instead, taking the mean of the batch and adding column one and two together.
 
-[The implementation](./src/loss.py#L57) is as follows:
+```math
+\begin{align}
+    L[\mathbf{\phi}] = MSE(\sin(\theta)) + MSE(\cos(\theta))
+\end{align}
+```
+
+[The implementation](./src/loss.py#L57) of the MSE is very similar, but not identical to the standard implementation. The axis can be defined:
 
 ```python
 @tf.function
 def call(self, y_true, y_pred):
-    return tf.math.reduce_sum(
-        tf.math.reduce_mean(
+    return tf.math.reduce_mean(
             tf.math.square(y_true - y_pred),
             axis = self.axis
-        ),
-        axis = -1
-    )
+        )
 ```
+
+# Visualisations
+Equipped with all the losses, we can now train our network and have a look at fancy looking graphs.
+
+## The Loss Surface
+
+The loss surface of a neural network is a graph, depending on all of the networks parameters (weights) and the loss associated with the state of the network. 
+Since this surface depends on all parameters of a network, it lives in a space of `#parameters` dimensions. 
+In our case it is `137 314` parameters for the `LSTM` model, and `2 402` parameters for the `Dense` model.
+
+This in itself is the big hurdle to overcome in order to be able to plot loss surfaces, since in visualisations we are restricted to at most 3 dimensions.
+Our approach was to project the state of the model after training into two dimensions, and then calculate a grid from there to get to a landscape (here of our LSTM model with MSE):
+
+![Loss Landscape of the LSTM model](./img/loss_surfc_lstm_mse-3d.png)
+
+
+We took inspiration from the paper [Visualizing the Loss Landscape of Neural Nets](https://doi.org/10.48550/arXiv.1712.09913) [1], and tried to adapt their simple approach to the plotting.
+
+
+## The Optimisation Path on the Loss Surface
+
+To show the part of the loss surface, on which the model performs the optimisation, we did a PC-Analysis on these. 
+This gave us roughly the section that is relevant, and the anchor for which we calculated the grid. [src/vis_loss.py](./src/vis_loss.py#L267)
+
+```python
+# Vectorize network weights
+weight_matrix = paramlist_to_matrix(training_path)
+
+# Create components
+pca = skd.PCA(
+    n_components = n_components,
+    whiten = True
+)
+components = pca.fit_transform(weight_matrix)
+```
+
+And scattering that on the surface looks like this (this time the dense model, MSE):
+
+![Loss Landscape of the Dense Model with the path traced](./img/loss_surfc_dense_mse-3d.png)
+
+The path is drawn before the surface, and I could not find a way to always draw it after the surface, especially since I had to turn the figure around to have a nice view.  
+
+
+### Problems with the Optimisation Path
+
+We initially wanted to use the real loss values the network calculated during its training.
+But unfortunately, no matter how hard we tried, we could not get them to align to be on the surface.
+
+```python
+# calculate the actual loss
+z_loss = np.empty(shape = (len(path),), dtype = np.float32)
+
+for i, pth in enumerate(tqdm.tqdm(path)):
+    self.model_.set_weights(coords(*pth))
+    z_loss[i] = self.model_.test_on_batch(
+        self.inputs_, 
+        self.outputs_, 
+        return_dict = True
+    )["loss"]
+```
+
+We then decided to instead just project them on the surface, losing some truth, but making for a prettier picture.
+For that we used Bilinear Interpolation. [src/vis_loss.py](./src/vis_loss.py#L157)
+```python
+interpolator = RegularGridInterpolator(
+    (X, Y),
+    Z.T
+)
+z_loss_grid = interpolator(path)
+```
+
 
 # Problems
 
-Deep learning in itself is an optimsation problem of utmost complexity. In our problem we never got the network to remotely predict the data. Many different approaches were tried, using different losses and network structures.
-
-Often the test predictions looked like this (datapoints have been numbered `1` to `n`, since they don't have a y value/speed anymore):
-
-![Bad test predictions, with the network predicting the same value for every datpoint](./img/lstm_vm_150ep.png) 
-
-The loss during that drop off fast during the first epoch, but remained constant during the rest of the training.
-
-<img src="./img/loss-vM-5.png" alt="Loss of the first five epochs, with a drop of loss from the first to the second epoch" width="400"/> <img src="./img/loss-vM.png" alt="Loss of all epochs" width="400">
-
-The only thing we could remotely call success were using the [sine/cosine embedding](#embedding-in-euclidian-space-mse). Below the LSTM model:
-
-![Decent test predictions, with the predictions spread](./img/lstm_sincos_150ep.png)
-
-The loss for both models also showed some significant improvements over the above von Mises loss.
-
-![Loss of the LSTM model with the sine/cosine embedding](./img/loss-sincos.png)
-
-Though sometimes we encounter the loss being stagnant and not capturing the data well. This happens in roughly 1/10th of the cases. We are fairly certain this depends on the initialisation, which means the problem is not consistently solveable. The data shown below sometimes is sometimes spreading out a bit, but not by a lot.
+While the models usually learn really well, sometimes we encountered the loss being stagnant and not capturing the data well. As this is not always the case, but only on some relatively rare occasions, we think this has to do with the initialisation. But just to be sure you are aware of this, this is how the loss and the predictions might look like:
 
 ![Loss of the LSTM model with the sine/cosine embedding](./img/loss-mse-bad.png)
+
+The predictions have been drawn from sample `1-n`, since they are only coded in angles, and this makes for the best visualisation.
+
 ![Distribution of Datapoints in the Testset](./img/lstm-bad-init.png)
 
+Just for comparison, this is how a "good" prediction would look like:
 
-TODO: 
-- refine loss visualisation
-- nuke --from-pretrained
-- copilot disclaimer
+![A good prediction](./img/lstm_sincos_150ep.png)
+
+
+# Copilot usage disclaimer
+GitHub Copilot has been used in this project for the following purposes:
+
+- Suggestions for Documentation
+- Giving explanation on code snippets
+- Support with arising bugs
+
+The idea and the work on the code itself is the work of the contributors to this repository.
+
+
+# Sources
+
+[1] Li, H., Xu, Z., Taylor, G., Studer, C., & Goldstein, T. (2017). Visualizing the loss landscape of neural nets. *arXiv (Cornell University)*. https://doi.org/10.48550/arxiv.1712.09913
