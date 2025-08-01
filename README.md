@@ -276,14 +276,9 @@ Just for comparison, this is what a "good" prediction would look like:
 
 
 # Copilot usage disclaimer
-GitHub Copilot has been used in this project for the following purposes:
+We have used GitHub Copilot for helping with documentation purposes (docstrings, comments). It was also used for explanation of unexpected code behaviour, though it rarely helped.
 
-- Suggestions for Documentation
-- Giving explanation on code snippets
-- Support with arising bugs
-
-The idea and the work on the code itself is the work of the contributors to this repository.
-
+This project and its code has been conceputalised and written solely by the members.
 
 # Sources
 
