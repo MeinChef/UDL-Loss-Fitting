@@ -1,14 +1,14 @@
 from data import DataLoader, load_config
-from model import get_dense_model, get_lstm_model
-from loss import VonMises, CustomMSE
-from vis_loss import PCACoordinates, LossSurface, plot_training_path
+from model import get_model
+from vis_loss import PCACoordinates, LossSurface
 from vis_data import vis_test_gt
 
 from imports import os
 from imports import argparse
 from imports import keras
+from imports import numpy as np
 from imports import plt
-
+from tqdm.keras import TqdmCallback
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -34,12 +34,6 @@ def parse_args() -> argparse.Namespace:
         "\nDefault: mse"
     )
 
-    # parser.add_argument(
-    #     "--from-pretrained",
-    #     action = "store_true",
-    #     help = "Optional argument. If set loads model weights from a pretrained checkpoint and skips training."
-    # )
-
     parser.add_argument(
         "--show-performance",
         action = "store_true",
@@ -50,47 +44,12 @@ def parse_args() -> argparse.Namespace:
 
 def resolve_args(args:argparse.Namespace, cfg: dict) -> tuple[keras.Model, dict]:
 
-    if args.loss.lower() == "vm":
-        cfg["loss"] = VonMises()
-        cfg["out"] = 1
-    elif args.loss.lower() == "mse":
-        cfg["loss"] = CustomMSE(axis = 0)
-        cfg["out"] = 2
-    else:
-        raise ValueError(f"Unknown loss function: {args.loss}")
-
-    # if args.from_pretrained:
-    #     model = keras.saving.load_model(
-    #         os.path.join(
-    #             cfg["data_path"], 
-    #             f"{args.model}_{args.loss}.keras"
-    #         ),
-    #         compile = False
-    #     )
-    #     cfg["train"] = False
-
-    # else:
-    if args.model.lower() == "dense":
-        model = get_dense_model(
-            num_out = cfg["out"]
-        )
-
-    elif args.model.lower() == "lstm":
-        model = get_lstm_model(
-            seq_len = cfg["seq_len"],
-            num_out = cfg["out"]
-        )
-
-    else:
-        raise ValueError(f"Unknown model type: {args.model}")
-    # cfg["train"] = True
-
+    cfg["visualise_test"] = args.show_performance
     cfg["model"] = args.model.lower()
+    cfg["loss"] = args.loss.lower()
 
-    if args.show_performance:
-        cfg["visualise_test"] = args.show_performance
-    else:
-        cfg["visualise_test"] = False
+    # get the model with the specified parameters
+    model = get_model(cfg)
     
     return model, cfg
 
@@ -105,43 +64,41 @@ if __name__ == "__main__":
     # load data
     loader = DataLoader(cfg)
     train, test = loader.load_data()
-    
-    # compile the model
-    model.compile(optimizer = "adam", loss = cfg["loss"])
 
     # print configurations
-    print(f"Using model type {cfg['model']} and Loss {cfg['loss'].__str__()}:")
+    print(f"Using model type {cfg['model']} and Loss {cfg['loss']}:")
     model.summary()
 
-    # if cfg["train"]:
     # preparation for recording the training and visualising the loss surface
-    # initial state
-    training_path = [model.weights]
+    # capturing the initial state
+    training_path = [model.get_weights()]
+    loss_path = [model.evaluate(test, verbose = 0)]
+
     collect_weights = keras.callbacks.LambdaCallback(
         on_epoch_end = (
             lambda batch, logs: training_path.append(
-                    model.weights
+                    model.get_weights()
                 )
         )
     )
 
-
     # fit the model
+    print("Data Preparation Complete, Training...")
     history = model.fit(
-        train, 
+        x = train,
+        validation_data = test, 
         epochs = cfg["epochs"],
-        callbacks = collect_weights,
-        verbose = 1
+        callbacks = [collect_weights, TqdmCallback(verbose = 0)],
+        verbose = 0
     )
 
-    model.evaluate(test)
+    # append the recording 
+    loss_path.extend(history.history["loss"])
+    print("Done!")
 
     if cfg["visualise_test"]:
         figure = vis_test_gt(model, test)
-        figure.show()
-
-    # else:
-    #     raise NotImplementedError()
+        plt.show()
 
     # create the loss surface
     loss_surface = LossSurface(
@@ -150,15 +107,35 @@ if __name__ == "__main__":
         outputs = loader.target
     )
 
+    # project it into 2D using PCA
     coords = PCACoordinates(training_path)
     loss_surface.compile(
         points = 30,
         coords = coords,
-        range = .001
+        range = 1
     )
+    
+    # plot the loss surface and the training path
+    fig, ax = loss_surface.plot_surfc_and_loss(
+        coords = coords,
+        training_path = training_path,
+        dpi = 300
+    )
+    
+    # ax.view_init(elev = 5+ 25*np.sin(np.radians(180)), azim = 25)
+    plt.draw()
 
-    # and plot it
-    ax = loss_surface.plot(dpi = 300)
-    ax = plot_training_path(coords, training_path, ax)
+    # and have a nice rotating animation to the plot
+    try:
+        for i in range(360*2):
+            # Calculate azimuth and elevation for rotation
+            azim = i
+            elev = 5 + 25 * np.sin(np.radians(i)) % 360
+            ax.view_init(elev = elev, azim = azim)
+
+            plt.draw()
+            plt.pause(0.01)
+    except KeyboardInterrupt:
+        pass
+
     plt.show()
-    breakpoint()

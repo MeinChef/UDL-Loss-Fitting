@@ -147,7 +147,7 @@ class LossSurface(object):
         ax.plot_surface(
             X,
             Y,
-            self.loss_grid_,
+            np.clip(self.loss_grid_, None, self.loss_grid_.min() + 5),
             cmap = "magma",
             alpha = 0.6,
             linewidth = 0,
