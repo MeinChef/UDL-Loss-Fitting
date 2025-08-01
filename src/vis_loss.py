@@ -5,6 +5,7 @@ from imports import skd
 from scipy.interpolate import RegularGridInterpolator
 from imports import plt
 from imports import colors
+from imports import tqdm
 from imports import plt3d
 from imports import plticker
 
@@ -66,14 +67,20 @@ class LossSurface(object):
         a_grid = tf.linspace(-1.0, 1.0, num = points) ** 3 * range
         b_grid = tf.linspace(-1.0, 1.0, num = points) ** 3 * range
         loss_grid = np.empty([len(a_grid), len(b_grid)])
-        for i, a in enumerate(a_grid):
+
+        print("Compiling loss surface...")
+        for i, a in enumerate(tqdm.tqdm(a_grid)):
             for j, b in enumerate(b_grid):
                 self.model_.set_weights(coords(a, b))
 
-                loss = self.model_.test_on_batch(
-                    self.inputs_, self.outputs_, return_dict=True
+                loss_grid[j, i] = self.model_.test_on_batch(
+                    self.inputs_, 
+                    self.outputs_, 
+                    return_dict=True
                 )["loss"]
-                loss_grid[j, i] = loss
+                # loss_grid[j, i] = loss
+
+        print("Done!")
         self.model_.set_weights(coords.origin_)
         self.a_grid_ = a_grid
         self.b_grid_ = b_grid
@@ -83,18 +90,105 @@ class LossSurface(object):
         self,
         coords: PCACoordinates,
         training_path: list[tf.Tensor | np.ndarray],
-
-    ):
-        raise NotImplementedError()
+        ax: plt.Axes = None,
+        **kwargs
+    ) -> tuple[plt.Figure, plt.Axes]:
+        
         path = weights_to_coordinates(coords, training_path)
-        # use these to somehow calculate the loss
-        # probably sth like
-        # for i, pt in enumerate(path):
-        #     self.model_.set_weights(coords(*pt))
-        #     z = self.model_.test_on_batch(
-        #         self.inputs_, self.outputs_, return_dict=True
+
+        # since especially with the von Mises loss, the values of this array might be negative
+        # substracting the minimum value from this array preserves the relationship between the
+        # values, while the minimum becomes 0. Adding a small value (0.001) just shifts the whole thing 
+        # to >0 (important when applying log)
+        # zs = self.loss_grid_ - self.loss_grid_.min() + 0.001
+        zs = self.loss_grid_
+
+        # min_loss = zs.min()
+        # max_loss = zs.max()
+
+
+        if ax is None:
+            fig, ax = plt.subplots(
+                nrows = 1,
+                ncols = 1,
+                subplot_kw = {'projection': '3d'},
+                **kwargs
+            )
+            ax.set_aspect("equal")
+            ax.set_title("The Loss Surface")
+        
+        # plot the surface
+        X, Y = np.meshgrid(
+            self.a_grid_,
+            self.b_grid_
+        )
+        ax.plot_surface(
+            X,
+            Y,
+            np.clip(zs, None, 5),
+            cmap = "magma",
+            alpha = 0.6,
+            linewidth = 0,
+            antialiased = True,
+            # norm = colors.LogNorm(vmin = min_loss, vmax = max_loss),
+        )
+
+        # calculate the actual loss
+        # z_loss = np.empty(shape = (len(path),), dtype = np.float32)
+
+        # for i, pth in enumerate(tqdm.tqdm(path)):
+        #     self.model_.set_weights(coords(*pth))
+        #     z_loss[i] = self.model_.test_on_batch(
+        #         self.inputs_, 
+        #         self.outputs_, 
+        #         return_dict = True
         #     )["loss"]
-        # scatter(a_grid, b_grid, z)
+
+        # ax.scatter(
+        #     path[:,0], 
+        #     path[:,1],
+        #     z_loss,
+        #     c = range(len(z_loss)), 
+        #     cmap = "cividis", 
+        #     s = 15,
+        #     zorder = 1
+        # )
+
+        interpolator = RegularGridInterpolator((self.a_grid_, self.b_grid_), self.loss_grid_.T)
+        z_loss_grid = interpolator(path)
+        # print("z_loss (actual):", z_loss)
+        # print("z_loss_grid (from grid):", z_loss_grid)
+        ax.scatter(
+            path[:,0], 
+            path[:,1],
+            z_loss_grid,
+            c = range(len(z_loss_grid)), 
+            cmap = "plasma", 
+            s = 15,
+            zorder = 1
+        )
+        
+        # interpolate the z-value bilinear:
+        # loss_pol = np.empty((len(path),))
+        # for i, pth in enumerate(path):
+        #     loss_pol[i] = self.custom_interpolator(pth, zs)
+        # 
+        # ax.scatter(
+        #     path[:,0], 
+        #     path[:,1],
+        #     loss_pol,
+        #     c = range(len(loss_pol)), 
+        #     cmap = "plasma", 
+        #     s = 15,
+        #     # norm = colors.LogNorm(vmin = min_loss, vmax = max_loss),
+        #     zorder = 1,
+        # )
+
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_zlabel("Loss")
+
+        return fig, ax
 
     def plot_contour(
             self,
@@ -264,6 +358,47 @@ class LossSurface(object):
         ax.set_zlabel("Loss")
         # ax.legend()
         return ax
+    
+    def custom_interpolator(
+        self,
+        point: np.ndarray,
+        zs: np.ndarray = None
+    ) -> np.ndarray:
+        """
+        :param point: should be a 2-Element Array, with x, y respectively
+        :return: 2-element array
+        """
+
+        x, y = point
+
+        # get the closest point in the grid
+        xidx = np.searchsorted(self.a_grid_, x, side = "left")
+        yidx = np.searchsorted(self.b_grid_, y, side = "left")
+        
+        # get the x and y values from the grid
+        x0, x1 = self.a_grid_[xidx], self.a_grid_[xidx + 1]
+        y0, y1 = self.b_grid_[yidx], self.b_grid_[yidx + 1]
+
+        if zs is None:
+            zs = self.loss_grid_
+        zs = zs.T
+
+        # get the z values from the grid
+        z00 = zs[xidx,   yidx]
+        z10 = zs[xidx+1, yidx]
+        z01 = zs[xidx,   yidx+1]
+        z11 = zs[xidx+1, yidx+1]
+
+        # calculate the weights for each diagonal part
+        wx1 = (x - x0) / (x1 - x0)
+        wx0 = 1 - wx1
+        wy1 = (y - y0) / (y1 - y0)
+        wy0 = 1 - wy1
+
+        return (z00 * wx0 * wy0 +
+                z10 * wx1 * wy0 +
+                z01 * wx0 * wy1 +
+                z11 * wx1 * wy1)
 
 def plot_training_path(
         coords: PCACoordinates, 
